@@ -106,3 +106,8 @@ pub struct Imagen {
     pub dithering: bool,
     pub size: String,
 }
+
+pub struct Logo {
+    pub key_code: u8,
+    pub mode: String,
+}
