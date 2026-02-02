@@ -3,7 +3,7 @@ pub enum PaperSize {
     Mm80,
 }
 
-pub impl PaperSize {
+impl PaperSize {
     // Método para obtener caracteres por línea
     pub fn chars_per_line(&self) -> i32 {
         match self {

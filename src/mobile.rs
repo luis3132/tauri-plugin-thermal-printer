@@ -15,7 +15,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
   api: PluginApi<R, C>,
 ) -> crate::Result<ThermalPrinter<R>> {
   #[cfg(target_os = "android")]
-  let handle = api.register_android_plugin("com.luis3132.thermal-printer", "ExamplePlugin")?;
+  let handle = api.register_android_plugin("com.luis3132.thermal-printer", "Thermal_Printer_Plugin")?;
   #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_thermal_printer)?;
   Ok(ThermalPrinter(handle))

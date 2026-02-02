@@ -1,0 +1,413 @@
+use crate::models::print_job_request::PrintJobRequest;
+use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen};
+use crate::commands_esc_pos::text::text_type::TextType;
+use crate::commands_esc_pos::control::printer_control::PrinterControl;
+use crate::commands_esc_pos::codes::barcode::{Barcode as EscPosBarcode, BarcodeType, BarcodeTextPosition};
+use crate::commands_esc_pos::codes::qr::{QR, QRModel, QRSize, QRErrorCorrection};
+use crate::commands_esc_pos::codes::pdf417::{PDF417, PDF417ErrorCorrection};
+use crate::commands_esc_pos::Image::{image::Image, image_alignment::ImageAlignment, image_mode::ImageMode};
+
+pub struct ProcessPrint {
+    current_styles: GlobalStyles,
+    max_width: i32,
+}
+
+impl ProcessPrint {
+    pub fn new() -> Self {
+        Self {
+            current_styles: GlobalStyles {
+                bold: false,
+                underline: false,
+                align: "left".to_string(),
+                italic: false,
+                invert: false,
+                font: "A".to_string(),
+                rotate: false,
+                upside_down: false,
+                size: "normal".to_string(),
+            },
+            max_width: 576, // Default to 80mm
+        }
+    }
+
+    pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u8>, String> {
+        if print_job.sections.is_empty() {
+            return Err("No sections to print".to_string());
+        }
+
+        if print_job.printer.is_empty() {
+            return Err("Printer not specified".to_string());
+        }
+
+        // Set max width based on paper size
+        self.max_width = print_job.paper_size.pixels_width();
+
+        let mut document: Vec<u8> = Vec::new();
+
+        for section in &print_job.sections {
+            let section_data = self.process_print_section(section)?;
+            document.extend(section_data);
+        }
+
+        Ok(document)
+    }
+
+    fn process_print_section(&mut self, print_section: &PrintSections) -> Result<Vec<u8>, String> {
+        match print_section {
+            PrintSections::Title(title) => self.process_title(title),
+            PrintSections::Subtitle(subtitle) => self.process_subtitle(subtitle),
+            PrintSections::Text(text) => self.process_text(text),
+            PrintSections::Feed(feed) => self.process_feed(feed),
+            PrintSections::Cut(cut) => self.process_cut(cut),
+            PrintSections::Beep(beep) => self.process_beep(beep),
+            PrintSections::Drawer(drawer) => self.process_drawer(drawer),
+            PrintSections::GlobalStyles(styles) => self.set_global_styles(styles),
+            PrintSections::Barcode(barcode) => self.process_barcode(barcode),
+            PrintSections::Qr(qr) => self.process_qr(qr),
+            PrintSections::Pdf417(pdf417) => self.process_pdf417(pdf417),
+            PrintSections::Imagen(imagen) => self.process_imagen(imagen),
+            _ => Err("Unsupported section type".to_string()),
+        }
+    }
+
+    /// Procesa encabezado (centrado, doble tamaño)
+    fn process_title(&mut self, title: &Title) -> Result<Vec<u8>, String> {
+        let mut output = Vec::new();
+        
+        // Forzar tamaño doble
+        let mut effective_styles = title.styles.clone();
+        effective_styles.size = "Double".to_string();
+        
+        let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
+        output.extend_from_slice(&diff_on);
+        
+        // Texto
+        let clean_text = Self::remove_accents(&title.text);
+        output.extend_from_slice(clean_text.as_bytes());
+        
+        // Resetear a estilos globales
+        let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
+        output.extend_from_slice(&diff_off);
+        
+        Ok(output)
+    }
+
+    /// Procesa subtítulo (tamaño normal, negrita)
+    fn process_subtitle(&mut self, subtitle: &Subtitle) -> Result<Vec<u8>, String> {
+        let mut output = Vec::new();
+        
+        // Forzar estilos: tamaño normal y negrita
+        let mut effective_styles = subtitle.styles.clone();
+        effective_styles.size = "normal".to_string();
+        effective_styles.bold = true;
+        
+        let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
+        output.extend_from_slice(&diff_on);
+        
+        // Texto
+        let clean_text = Self::remove_accents(&subtitle.text);
+        output.extend_from_slice(clean_text.as_bytes());
+        
+        // Resetear a estilos globales
+        let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
+        output.extend_from_slice(&diff_off);
+        
+        Ok(output)
+    }
+
+    /// Procesa texto (estilos libres)
+    fn process_text(&mut self, text: &Text) -> Result<Vec<u8>, String> {
+        let mut output = Vec::new();
+        
+        // Usar estilos como están
+        let effective_styles = text.styles.clone();
+        
+        let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
+        output.extend_from_slice(&diff_on);
+        
+        // Texto
+        let clean_text = Self::remove_accents(&text.text);
+        output.extend_from_slice(clean_text.as_bytes());
+        
+        // Resetear a estilos globales
+        let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
+        output.extend_from_slice(&diff_off);
+        
+        Ok(output)
+    }
+
+    /// Procesa feed de papel
+    fn process_feed(&mut self, feed: &Feed) -> Result<Vec<u8>, String> {
+        match feed.feed_type.as_str() {
+            "lines" => Ok(PrinterControl::feed_paper(feed.value)),
+            "dots" => Ok(PrinterControl::feed_paper_dots(feed.value)),
+            "line_feed" => Ok(PrinterControl::line_feed_multiple(feed.value as usize)),
+            _ => Err("Unknown feed type".to_string()),
+        }
+    }
+
+    /// Procesa corte de papel
+    fn process_cut(&mut self, cut: &Cut) -> Result<Vec<u8>, String> {
+        let mode_u8 = match cut.mode.as_str() {
+            "full" => 0,
+            "partial" => 1,
+            "partial_alt" => 65,
+            "partial_alt2" => 66,
+            _ => 1, // default partial
+        };
+        Ok(PrinterControl::cut_paper_with_feed(mode_u8, cut.feed))
+    }
+
+    /// Procesa beep
+    fn process_beep(&mut self, beep: &Beep) -> Result<Vec<u8>, String> {
+        let mut times = beep.times;
+        if times <= 0 {
+            times = 1;
+        }
+        let mut duration = beep.duration;
+        if duration <= 0 {
+            duration = 100;
+        }
+        Ok(PrinterControl::beep_custom(times, duration))
+    }
+
+    /// Procesa cajón de dinero
+    fn process_drawer(&mut self, drawer: &Drawer) -> Result<Vec<u8>, String> {
+        if drawer.pin == 2 {
+            Ok(PrinterControl::open_cash_drawer_pin2(drawer.pulse_time))
+        } else {
+            Ok(PrinterControl::open_cash_drawer_pin5(drawer.pulse_time))
+        }
+    }
+
+    /// Procesa código de barras
+    fn process_barcode(&mut self, barcode: &Barcode) -> Result<Vec<u8>, String> {
+        let barcode_type = match barcode.barcode_type.as_str() {
+            "UPC-A" => BarcodeType::UpcA,
+            "UPC-E" => BarcodeType::UpcE,
+            "EAN13" => BarcodeType::Ean13,
+            "EAN8" => BarcodeType::Ean8,
+            "CODE39" => BarcodeType::Code39,
+            "ITF" => BarcodeType::Itf,
+            "CODABAR" => BarcodeType::Codabar,
+            "CODE93" => BarcodeType::Code93,
+            "CODE128" => BarcodeType::Code128,
+            _ => BarcodeType::Code128, // default
+        };
+
+        let text_position = match barcode.text_position.as_str() {
+            "none" => BarcodeTextPosition::NotPrinted,
+            "above" => BarcodeTextPosition::Above,
+            "below" => BarcodeTextPosition::Below,
+            "both" => BarcodeTextPosition::Both,
+            _ => BarcodeTextPosition::NotPrinted, // default
+        };
+
+        let esc_pos_barcode = EscPosBarcode::new(barcode_type, barcode.data.clone())
+            .set_height(barcode.height)
+            .set_width(barcode.width)
+            .set_text_position(text_position);
+
+        Ok(esc_pos_barcode.get_command())
+    }
+
+    /// Procesa código QR
+    fn process_qr(&mut self, qr: &Qr) -> Result<Vec<u8>, String> {
+        let model = if qr.model == 1 {
+            QRModel::Model1
+        } else {
+            QRModel::Model2
+        };
+
+        let size = match qr.size {
+            1 => QRSize::Size1,
+            2 => QRSize::Size2,
+            3 => QRSize::Size3,
+            4 => QRSize::Size4,
+            5 => QRSize::Size5,
+            6 => QRSize::Size6,
+            7 => QRSize::Size7,
+            8 => QRSize::Size8,
+            9 => QRSize::Size9,
+            10 => QRSize::Size10,
+            11 => QRSize::Size11,
+            12 => QRSize::Size12,
+            13 => QRSize::Size13,
+            14 => QRSize::Size14,
+            15 => QRSize::Size15,
+            16 => QRSize::Size16,
+            _ => QRSize::Size6, // default
+        };
+
+        let error_correction = match qr.error_correction.as_str() {
+            "L" => QRErrorCorrection::L,
+            "M" => QRErrorCorrection::M,
+            "Q" => QRErrorCorrection::Q,
+            "H" => QRErrorCorrection::H,
+            _ => QRErrorCorrection::M, // default
+        };
+
+        let esc_pos_qr = QR::new(qr.data.clone())
+            .set_model(model)
+            .set_size(size)
+            .set_error_correction(error_correction);
+
+        Ok(esc_pos_qr.get_command())
+    }
+
+    /// Procesa código PDF417
+    fn process_pdf417(&mut self, pdf417: &Pdf417) -> Result<Vec<u8>, String> {
+        let error_correction = match pdf417.error_correction {
+            0 => PDF417ErrorCorrection::Level0,
+            1 => PDF417ErrorCorrection::Level1,
+            2 => PDF417ErrorCorrection::Level2,
+            3 => PDF417ErrorCorrection::Level3,
+            4 => PDF417ErrorCorrection::Level4,
+            5 => PDF417ErrorCorrection::Level5,
+            6 => PDF417ErrorCorrection::Level6,
+            7 => PDF417ErrorCorrection::Level7,
+            8 => PDF417ErrorCorrection::Level8,
+            _ => PDF417ErrorCorrection::Level1, // default
+        };
+
+        let esc_pos_pdf417 = PDF417::new(pdf417.data.clone())
+            .set_columns(pdf417.columns)
+            .set_rows(pdf417.rows)
+            .set_error_correction(error_correction);
+
+        Ok(esc_pos_pdf417.get_command())
+    }
+
+    /// Procesa imagen
+    fn process_imagen(&mut self, imagen: &Imagen) -> Result<Vec<u8>, String> {
+        let alignment = match imagen.align.as_str() {
+            "left" => ImageAlignment::Left,
+            "center" => ImageAlignment::Center,
+            "right" => ImageAlignment::Right,
+            _ => ImageAlignment::Center,
+        };
+
+        let mode = match imagen.size.as_str() {
+            "normal" => ImageMode::Normal,
+            "double_width" => ImageMode::DoubleWidth,
+            "double_height" => ImageMode::DoubleHeight,
+            "quadruple" => ImageMode::Quadruple,
+            _ => ImageMode::Normal,
+        };
+
+        if imagen.max_width > self.max_width || imagen.max_width <= 0 {
+            imagen.max_width = self.max_width;
+        }
+
+        let image = Image::new(&imagen.data, imagen.max_width as u32)
+            .map_err(|e| format!("Failed to create image: {}", e))?
+            .set_alignment(alignment)
+            .set_mode(mode)
+            .set_use_dithering(imagen.dithering);
+
+        image.get_command()
+    }
+
+    fn set_global_styles(&mut self, styles: &GlobalStyles) -> Result<Vec<u8>, String> {
+        let diff = self.get_styles_diff(&self.current_styles, styles);
+        self.current_styles = styles.clone();
+        Ok(diff)
+    }
+
+    fn get_styles_diff(&self, old: &GlobalStyles, new: &GlobalStyles) -> Vec<u8> {
+        let mut output = Vec::new();
+
+        if old.bold != new.bold {
+            if new.bold {
+                output.extend_from_slice(TextType::BoldOn.command());
+            } else {
+                output.extend_from_slice(TextType::BoldOff.command());
+            }
+        }
+        if old.underline != new.underline {
+            if new.underline {
+                output.extend_from_slice(TextType::UnderlineOn.command());
+            } else {
+                output.extend_from_slice(TextType::UnderlineOff.command());
+            }
+        }
+        if old.italic != new.italic {
+            if new.italic {
+                output.extend_from_slice(TextType::ItalicOn.command());
+            } else {
+                output.extend_from_slice(TextType::ItalicOff.command());
+            }
+        }
+        if old.invert != new.invert {
+            if new.invert {
+                output.extend_from_slice(TextType::InvertOn.command());
+            } else {
+                output.extend_from_slice(TextType::InvertOff.command());
+            }
+        }
+        if old.rotate != new.rotate {
+            if new.rotate {
+                output.extend_from_slice(TextType::RotateOn.command());
+            } else {
+                output.extend_from_slice(TextType::RotateOff.command());
+            }
+        }
+        if old.upside_down != new.upside_down {
+            if new.upside_down {
+                output.extend_from_slice(TextType::UpsideDownOn.command());
+            } else {
+                output.extend_from_slice(TextType::UpsideDownOff.command());
+            }
+        }
+        if old.font != new.font {
+            if new.font == "A" {
+                output.extend_from_slice(TextType::FontA.command());
+            } else if new.font == "B" {
+                output.extend_from_slice(TextType::FontB.command());
+            } else if new.font == "C" {
+                output.extend_from_slice(TextType::FontC.command());
+            }
+        }
+        if old.size != new.size {
+            if new.size == "normal" {
+                output.extend_from_slice(TextType::Normal.command());
+            } else if new.size == "width" {
+                output.extend_from_slice(TextType::DoubleWidth.command());
+            } else if new.size == "height" {
+                output.extend_from_slice(TextType::DoubleHeight.command());
+            } else if new.size == "double" {
+                output.extend_from_slice(TextType::DoubleSize.command());
+            }
+        }
+        if old.align != new.align {
+            if new.align == "left" {
+                output.extend_from_slice(TextType::AlignLeft.command());
+            } else if new.align == "center" {
+                output.extend_from_slice(TextType::AlignCenter.command());
+            } else if new.align == "right" {
+                output.extend_from_slice(TextType::AlignRight.command());
+            }
+        }
+
+        output
+    }
+
+    /// Remueve tildes y caracteres especiales del texto
+    fn remove_accents(text: &str) -> String {
+        text.chars()
+            .map(|c| match c {
+                'á' | 'Á' => 'a',
+                'é' | 'É' => 'e',
+                'í' | 'Í' => 'i',
+                'ó' | 'Ó' => 'o',
+                'ú' | 'Ú' => 'u',
+                'ñ' => 'n',
+                'Ñ' => 'N',
+                'ü' | 'Ü' => 'u',
+                '¿' => '?',
+                '¡' => '!',
+                _ => c,
+            })
+            .collect()
+    }
+}
