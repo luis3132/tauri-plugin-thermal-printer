@@ -1,3 +1,6 @@
+use super::barcode_type::BarcodeType;
+use super::barcode_text_position::BarcodeTextPosition;
+
 /// Constructor de comandos para códigos de barras
 #[derive(Debug, Clone)]
 pub struct Barcode {
@@ -117,24 +120,4 @@ impl Barcode {
         output
     }
 
-    /// Getters para acceder a los valores
-    pub fn barcode_type(&self) -> BarcodeType {
-        self.barcode_type
-    }
-
-    pub fn data(&self) -> &str {
-        &self.data
-    }
-
-    pub fn height(&self) -> u8 {
-        self.height
-    }
-
-    pub fn width(&self) -> u8 {
-        self.width
-    }
-
-    pub fn text_position(&self) -> BarcodeTextPosition {
-        self.text_position
-    }
 }

@@ -1,4 +1,4 @@
-use image::{DynamicImage, ImageBuffer, Luma};
+use image::{DynamicImage, ImageBuffer, Luma, GenericImageView};
 use base64::{Engine as _, engine::general_purpose};
 
 /// Procesador de imágenes para impresoras térmicas

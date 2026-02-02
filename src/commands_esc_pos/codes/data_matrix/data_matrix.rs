@@ -1,3 +1,5 @@
+use super::data_matrix_size::DataMatrixSize;
+
 /// Constructor de comandos para códigos DataMatrix
 /// 
 /// NOTA: DataMatrix no es soportado por todas las impresoras térmicas.

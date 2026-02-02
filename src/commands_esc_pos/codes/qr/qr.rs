@@ -1,3 +1,7 @@
+use super::qr_model::QRModel;
+use super::qr_size::QRSize;
+use super::qr_error_correction::QRErrorCorrection;
+
 /// Constructor de comandos para códigos QR
 #[derive(Debug, Clone)]
 pub struct QR {

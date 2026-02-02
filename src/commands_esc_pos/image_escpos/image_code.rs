@@ -1,4 +1,8 @@
 
+use super::image_alignment::ImageAlignment;
+use super::image_mode::ImageMode;
+use super::image_processor::ImageProcessor;
+
 /// Constructor de comandos para imágenes
 #[derive(Debug, Clone)]
 pub struct Image {

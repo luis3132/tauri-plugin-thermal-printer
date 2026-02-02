@@ -1,4 +1,9 @@
 
+use serde::{Deserialize, Serialize};
+
+use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PrintSections {
     Title(Title),
     Subtitle(Subtitle),
@@ -11,47 +16,55 @@ pub enum PrintSections {
     Qr(Qr),
     Barcode(Barcode),
     Table(Table),
-    DataMatrix(DataMatrix),
+    DataMatrix(DataMatrixModel),
     Pdf417(Pdf417),
     Imagen(Imagen),
+    Logo(Logo),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Title {
     pub text: String,
     pub styles: GlobalStyles,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subtitle {
     pub text: String,
     pub styles: GlobalStyles,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Text {
     pub text: String,
     pub styles: GlobalStyles,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Feed {
     pub feed_type: String,
     pub value: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cut {
     pub mode: String,
     pub feed: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Beep {
     pub times: u8,
     pub duration: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drawer {
     pub pin: u8,
     pub pulse_time: u16,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalStyles {
     pub bold: bool,
     pub underline: bool,
@@ -64,6 +77,7 @@ pub struct GlobalStyles {
     pub size: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
     pub columns: u8,
     pub column_widths: Vec<u8>,
@@ -72,6 +86,7 @@ pub struct Table {
     pub truncate: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Qr {
     pub data: String,
     pub size: u8,
@@ -79,6 +94,7 @@ pub struct Qr {
     pub model: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Barcode {
     pub data: String,
     pub barcode_type: String,
@@ -87,11 +103,13 @@ pub struct Barcode {
     pub text_position: String,
 }
 
-pub struct DataMatrix {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataMatrixModel {
     pub data: String,
     pub size: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pdf417 {
     pub data: String,
     pub columns: u8,
@@ -99,6 +117,7 @@ pub struct Pdf417 {
     pub error_correction: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Imagen {
     pub data: String,
     pub max_width: i32,
@@ -107,6 +126,7 @@ pub struct Imagen {
     pub size: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logo {
     pub key_code: u8,
     pub mode: String,

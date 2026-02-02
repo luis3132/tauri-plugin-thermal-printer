@@ -1,3 +1,6 @@
+use super::image_mode::ImageMode;
+use super::image_processor::ImageProcessor;
+
 /// Clase para manejar logos guardados en la memoria de la impresora.
 /// Algunas impresoras ESC/POS permiten guardar logos en memoria NV (Non-Volatile).
 #[derive(Debug, Clone)]

@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)] // Permite imprimir y copiar el objeto fácilmente
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrinterOptions {
     pub cut_paper: bool,
     pub beep: bool,

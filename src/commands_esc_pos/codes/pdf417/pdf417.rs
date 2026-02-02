@@ -1,3 +1,5 @@
+use super::pdf417_error_correction::PDF417ErrorCorrection;
+
 /// Constructor de comandos para códigos PDF417
 /// 
 /// NOTA: PDF417 no es soportado por todas las impresoras térmicas.

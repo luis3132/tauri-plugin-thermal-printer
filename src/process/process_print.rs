@@ -1,11 +1,13 @@
+use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
 use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen, Logo};
+use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen, Logo, DataMatrixModel};
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::codes::barcode::{Barcode as EscPosBarcode, BarcodeType, BarcodeTextPosition};
 use crate::commands_esc_pos::codes::qr::{QR, QRModel, QRSize, QRErrorCorrection};
 use crate::commands_esc_pos::codes::pdf417::{PDF417, PDF417ErrorCorrection};
-use crate::commands_esc_pos::Image::{image::Image, image_alignment::ImageAlignment, image_mode::ImageMode, logo::Logo as EscPosLogo};
+use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode, Logo as EscPosLogo};
+use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
 
 pub struct ProcessPrint {
     current_styles: GlobalStyles,
@@ -67,7 +69,10 @@ impl ProcessPrint {
             PrintSections::Pdf417(pdf417) => self.process_pdf417(pdf417),
             PrintSections::Imagen(imagen) => self.process_imagen(imagen),
             PrintSections::Logo(logo) => self.process_logo(logo),
-            _ => Err("Unsupported section type".to_string()),
+            PrintSections::DataMatrix(data_matrix) => self.process_data_matrix(data_matrix),
+            PrintSections::Table(_table) => {
+                // Implementar procesamiento de tablas si es necesario
+                Err("Table processing not implemented".to_string())}
         }
     }
 
@@ -296,11 +301,13 @@ impl ProcessPrint {
             _ => ImageMode::Normal,
         };
 
-        if imagen.max_width > self.max_width || imagen.max_width <= 0 {
-            imagen.max_width = self.max_width;
-        }
+        let max_width = if imagen.max_width > self.max_width || imagen.max_width <= 0 {
+            self.max_width as u32
+        } else {
+            imagen.max_width as u32
+        };
 
-        let image = Image::new(&imagen.data, imagen.max_width as u32)
+        let image = Image::new(&imagen.data, max_width)
             .map_err(|e| format!("Failed to create image: {}", e))?
             .set_alignment(alignment)
             .set_mode(mode)
@@ -322,6 +329,22 @@ impl ProcessPrint {
         let esc_pos_logo = EscPosLogo::new(logo.key_code).set_mode(mode);
 
         Ok(esc_pos_logo.get_print_command())
+    }
+
+    /// Procesa código DataMatrix
+    fn process_data_matrix(&mut self, data_matrix: &DataMatrixModel) -> Result<Vec<u8>, String> {
+        let size = match data_matrix.size {
+            1 => DataMatrixSize::Size1,
+            2 => DataMatrixSize::Size2,
+            3 => DataMatrixSize::Size3,
+            4 => DataMatrixSize::Size4,
+            5 => DataMatrixSize::Size5,
+            6 => DataMatrixSize::Size6,
+            _ => DataMatrixSize::Size6,
+        };
+        let esc_pos_data_matrix = DataMatrix::new(data_matrix.data.clone()).set_size(size);
+
+        Ok(esc_pos_data_matrix.get_command())
     }
 
     fn set_global_styles(&mut self, styles: &GlobalStyles) -> Result<Vec<u8>, String> {
