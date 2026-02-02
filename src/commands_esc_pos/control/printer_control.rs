@@ -8,12 +8,6 @@ impl PrinterControl {
         vec![0x1B, 0x40]
     }
 
-    /// Salto de línea simple
-    /// LF
-    pub fn line_feed() -> Vec<u8> {
-        vec![0x0A]
-    }
-
     /// Múltiples saltos de línea
     /// # Arguments
     /// * `lines` - Número de líneas a saltar
@@ -23,9 +17,9 @@ impl PrinterControl {
 
     /// Retorno de carro
     /// CR
-    pub fn carriage_return() -> Vec<u8> {
-        vec![0x0D]
-    }
+    // pub fn carriage_return() -> Vec<u8> {
+    //     vec![0x0D]
+    // }
 
     /// Avance de papel (feed)
     /// ESC d n
@@ -43,24 +37,6 @@ impl PrinterControl {
         vec![0x1B, 0x4A, dots]
     }
 
-    /// Corte de papel completo
-    /// GS V 0 (o GS V 48)
-    pub fn cut_paper_full() -> Vec<u8> {
-        vec![0x1D, 0x56, 0x00]
-    }
-
-    /// Corte de papel parcial (versión estándar)
-    /// GS V 1 (o GS V 49)
-    pub fn cut_paper_partial() -> Vec<u8> {
-        vec![0x1D, 0x56, 0x01]
-    }
-
-    /// Corte de papel parcial alternativo (más compatible)
-    /// GS V 66 n
-    pub fn cut_paper_partial_alt() -> Vec<u8> {
-        vec![0x1D, 0x56, 0x42, 0x00]
-    }
-
     /// Corte de papel con avance
     /// GS V m n
     /// # Arguments
@@ -68,18 +44,6 @@ impl PrinterControl {
     /// * `feed_lines` - Líneas a avanzar antes de cortar (0-255)
     pub fn cut_paper_with_feed(mode: u8, feed_lines: u8) -> Vec<u8> {
         vec![0x1D, 0x56, mode, feed_lines]
-    }
-
-    /// Corte de papel con avance (versión simplificada)
-    /// ESC i - Corte parcial (más compatible)
-    pub fn cut_paper_simple() -> Vec<u8> {
-        vec![0x1B, 0x69]
-    }
-
-    /// Corte de papel completo (versión simplificada)
-    /// ESC m - Corte completo
-    pub fn cut_paper_full_simple() -> Vec<u8> {
-        vec![0x1B, 0x6D]
     }
 
     /// Activa el cajón de dinero (cash drawer) - Puerto 1
@@ -124,116 +88,76 @@ impl PrinterControl {
         ]
     }
 
-    /// Beep simple con valores por defecto
-    pub fn beep() -> Vec<u8> {
-        Self::beep_custom(2, 3)
-    }
+    // /// Establece el interlineado
+    // /// ESC 3 n
+    // /// # Arguments
+    // /// * `spacing` - Espaciado en puntos (0-255)
+    // pub fn set_line_spacing(spacing: u8) -> Vec<u8> {
+    //     vec![0x1B, 0x33, spacing]
+    // }
 
-    /// Beep de error (más largo)
-    pub fn beep_error() -> Vec<u8> {
-        Self::beep_custom(3, 5)
-    }
+    // /// Establece el espaciado de caracteres
+    // /// ESC SP n
+    // /// # Arguments
+    // /// * `spacing` - Espaciado en puntos (0-255)
+    // pub fn set_character_spacing(spacing: u8) -> Vec<u8> {
+    //     vec![0x1B, 0x20, spacing]
+    // }
 
-    /// Beep de éxito (corto)
-    pub fn beep_success() -> Vec<u8> {
-        Self::beep_custom(1, 2)
-    }
+    // /// Habilita/deshabilita el modo de impresión automática
+    // /// ESC c 5 n
+    // /// # Arguments
+    // /// * `enable` - true para habilitar, false para deshabilitar
+    // pub fn set_print_mode(enable: bool) -> Vec<u8> {
+    //     vec![0x1B, 0x63, 0x35, if enable { 1 } else { 0 }]
+    // }
 
-    /// Establece el interlineado por defecto
-    /// ESC 2
-    pub fn set_default_line_spacing() -> Vec<u8> {
-        vec![0x1B, 0x32]
-    }
+    // /// Obtiene el estado de la impresora
+    // /// DLE EOT n
+    // /// # Arguments
+    // /// * `status_type` - Tipo de estado a consultar (1-4)
+    // pub fn get_printer_status(status_type: u8) -> Vec<u8> {
+    //     vec![0x10, 0x04, status_type]
+    // }
 
-    /// Establece el interlineado
-    /// ESC 3 n
-    /// # Arguments
-    /// * `spacing` - Espaciado en puntos (0-255)
-    pub fn set_line_spacing(spacing: u8) -> Vec<u8> {
-        vec![0x1B, 0x33, spacing]
-    }
+    // /// Comando para imprimir y avanzar papel
+    // /// ESC d n
+    // pub fn print_and_feed(lines: u8) -> Vec<u8> {
+    //     Self::feed_paper(lines)
+    // }
 
-    /// Establece el espaciado de caracteres
-    /// ESC SP n
-    /// # Arguments
-    /// * `spacing` - Espaciado en puntos (0-255)
-    pub fn set_character_spacing(spacing: u8) -> Vec<u8> {
-        vec![0x1B, 0x20, spacing]
-    }
+    // /// Modo de página (permite posicionamiento absoluto)
+    // /// ESC L
+    // pub fn enable_page_mode() -> Vec<u8> {
+    //     vec![0x1B, 0x4C]
+    // }
 
-    /// Habilita/deshabilita el modo de impresión automática
-    /// ESC c 5 n
-    /// # Arguments
-    /// * `enable` - true para habilitar, false para deshabilitar
-    pub fn set_print_mode(enable: bool) -> Vec<u8> {
-        vec![0x1B, 0x63, 0x35, if enable { 1 } else { 0 }]
-    }
+    // /// Modo estándar (desactiva modo página)
+    // /// ESC S
+    // pub fn enable_standard_mode() -> Vec<u8> {
+    //     vec![0x1B, 0x53]
+    // }
 
-    /// Obtiene el estado de la impresora
-    /// DLE EOT n
-    /// # Arguments
-    /// * `status_type` - Tipo de estado a consultar (1-4)
-    pub fn get_printer_status(status_type: u8) -> Vec<u8> {
-        vec![0x10, 0x04, status_type]
-    }
+    // /// Establece el área de impresión en modo página
+    // /// ESC W xL xH yL yH dxL dxH dyL dyH
+    // pub fn set_page_mode_area(x: u16, y: u16, width: u16, height: u16) -> Vec<u8> {
+    //     vec![
+    //         0x1B,
+    //         0x57,
+    //         (x & 0xFF) as u8,
+    //         ((x >> 8) & 0xFF) as u8,
+    //         (y & 0xFF) as u8,
+    //         ((y >> 8) & 0xFF) as u8,
+    //         (width & 0xFF) as u8,
+    //         ((width >> 8) & 0xFF) as u8,
+    //         (height & 0xFF) as u8,
+    //         ((height >> 8) & 0xFF) as u8,
+    //     ]
+    // }
 
-    /// Comando para imprimir y avanzar papel
-    /// ESC d n
-    pub fn print_and_feed(lines: u8) -> Vec<u8> {
-        Self::feed_paper(lines)
-    }
-
-    /// Comando para imprimir y cortar papel
-    pub fn print_and_cut() -> Vec<u8> {
-        let mut output = Vec::new();
-        output.extend_from_slice(&Self::feed_paper(5)); // Avanzar papel antes de cortar
-        output.extend_from_slice(&Self::cut_paper_partial());
-        output
-    }
-
-    /// Secuencia completa de finalización de impresión
-    /// Avanza papel, hace beep y corta
-    pub fn finish_printing() -> Vec<u8> {
-        let mut output = Vec::new();
-        output.extend_from_slice(&Self::feed_paper(3));
-        output.extend_from_slice(&Self::beep());
-        output.extend_from_slice(&Self::feed_paper(2));
-        output.extend_from_slice(&Self::cut_paper_partial());
-        output
-    }
-
-    /// Modo de página (permite posicionamiento absoluto)
-    /// ESC L
-    pub fn enable_page_mode() -> Vec<u8> {
-        vec![0x1B, 0x4C]
-    }
-
-    /// Modo estándar (desactiva modo página)
-    /// ESC S
-    pub fn enable_standard_mode() -> Vec<u8> {
-        vec![0x1B, 0x53]
-    }
-
-    /// Establece el área de impresión en modo página
-    /// ESC W xL xH yL yH dxL dxH dyL dyH
-    pub fn set_page_mode_area(x: u16, y: u16, width: u16, height: u16) -> Vec<u8> {
-        vec![
-            0x1B,
-            0x57,
-            (x & 0xFF) as u8,
-            ((x >> 8) & 0xFF) as u8,
-            (y & 0xFF) as u8,
-            ((y >> 8) & 0xFF) as u8,
-            (width & 0xFF) as u8,
-            ((width >> 8) & 0xFF) as u8,
-            (height & 0xFF) as u8,
-            ((height >> 8) & 0xFF) as u8,
-        ]
-    }
-
-    /// Imprime el contenido del buffer en modo página
-    /// ESC FF
-    pub fn print_page_mode() -> Vec<u8> {
-        vec![0x1B, 0x0C]
-    }
+    // /// Imprime el contenido del buffer en modo página
+    // /// ESC FF
+    // pub fn print_page_mode() -> Vec<u8> {
+    //     vec![0x1B, 0x0C]
+    // }
 }

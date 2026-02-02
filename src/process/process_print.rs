@@ -46,6 +46,8 @@ impl ProcessPrint {
 
         let mut document: Vec<u8> = Vec::new();
 
+        document.extend(PrinterControl::initialize());
+
         for section in &print_job.sections {
             let section_data = self.process_print_section(section)?;
             document.extend(section_data);
@@ -279,6 +281,8 @@ impl ProcessPrint {
         let esc_pos_pdf417 = PDF417::new(pdf417.data.clone())
             .set_columns(pdf417.columns)
             .set_rows(pdf417.rows)
+            .set_height(pdf417.height)
+            .set_width(pdf417.width)
             .set_error_correction(error_correction);
 
         Ok(esc_pos_pdf417.get_command())

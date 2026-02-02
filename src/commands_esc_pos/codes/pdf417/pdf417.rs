@@ -197,29 +197,4 @@ impl PDF417 {
             0x40, // fn = 64 (consultar)
         ]
     }
-
-    /// Getters para acceder a los valores
-    pub fn data(&self) -> &str {
-        &self.data
-    }
-
-    pub fn columns(&self) -> u8 {
-        self.columns
-    }
-
-    pub fn rows(&self) -> u8 {
-        self.rows
-    }
-
-    pub fn width(&self) -> u8 {
-        self.width
-    }
-
-    pub fn height(&self) -> u8 {
-        self.height
-    }
-
-    pub fn error_correction(&self) -> PDF417ErrorCorrection {
-        self.error_correction
-    }
 }

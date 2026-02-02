@@ -119,13 +119,4 @@ impl Logo {
             0x00, // n = 0 (todos)
         ]
     }
-
-    /// Getters
-    pub fn key_code(&self) -> u8 {
-        self.key_code
-    }
-
-    pub fn mode(&self) -> ImageMode {
-        self.mode
-    }
 }

@@ -37,12 +37,6 @@ impl Image {
         self
     }
 
-    /// Establece el ancho máximo
-    pub fn set_max_width(mut self, max_width: u32) -> Self {
-        self.max_width = max_width;
-        self
-    }
-
     /// Establece si usar dithering
     pub fn set_use_dithering(mut self, use_dithering: bool) -> Self {
         self.use_dithering = use_dithering;
@@ -137,22 +131,5 @@ impl Image {
         output.extend_from_slice(&[0x1B, 0x61, 0x00]);
 
         Ok(output)
-    }
-
-    /// Getters
-    pub fn alignment(&self) -> ImageAlignment {
-        self.alignment
-    }
-
-    pub fn mode(&self) -> ImageMode {
-        self.mode
-    }
-
-    pub fn max_width(&self) -> u32 {
-        self.max_width
-    }
-
-    pub fn use_dithering(&self) -> bool {
-        self.use_dithering
     }
 }

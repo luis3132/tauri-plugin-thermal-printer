@@ -125,20 +125,4 @@ impl QR {
         output
     }
 
-    /// Getters para acceder a los valores
-    pub fn model(&self) -> QRModel {
-        self.model
-    }
-
-    pub fn size(&self) -> QRSize {
-        self.size
-    }
-
-    pub fn error_correction(&self) -> QRErrorCorrection {
-        self.error_correction
-    }
-
-    pub fn data(&self) -> &str {
-        &self.data
-    }
 }

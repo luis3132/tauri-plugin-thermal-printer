@@ -1,8 +1,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PrintSections {
     Title(Title),
@@ -114,6 +112,8 @@ pub struct Pdf417 {
     pub data: String,
     pub columns: u8,
     pub rows: u8,
+    pub width: u8,
+    pub height: u8,
     pub error_correction: u8,
 }
 

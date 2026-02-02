@@ -88,36 +88,36 @@ impl Barcode {
         output
     }
 
-    /// Método alternativo usando formato con NUL terminator (para impresoras antiguas)
-    /// Usa el método 1 con terminador NULL
-    pub fn get_command_legacy(&self) -> Vec<u8> {
-        let mut output = Vec::new();
-        let data_bytes = self.data.as_bytes();
+    // /// Método alternativo usando formato con NUL terminator (para impresoras antiguas)
+    // /// Usa el método 1 con terminador NULL
+    // pub fn get_command_legacy(&self) -> Vec<u8> {
+    //     let mut output = Vec::new();
+    //     let data_bytes = self.data.as_bytes();
 
-        // Establecer altura
-        output.push(0x1D); // GS
-        output.push(0x68); // h
-        output.push(self.height);
+    //     // Establecer altura
+    //     output.push(0x1D); // GS
+    //     output.push(0x68); // h
+    //     output.push(self.height);
 
-        // Establecer ancho
-        output.push(0x1D); // GS
-        output.push(0x77); // w
-        output.push(self.width);
+    //     // Establecer ancho
+    //     output.push(0x1D); // GS
+    //     output.push(0x77); // w
+    //     output.push(self.width);
 
-        // Posición del texto
-        output.push(0x1D); // GS
-        output.push(0x48); // H
-        output.push(self.text_position.value());
+    //     // Posición del texto
+    //     output.push(0x1D); // GS
+    //     output.push(0x48); // H
+    //     output.push(self.text_position.value());
 
-        // Imprimir código de barras - Método 1 (con NUL)
-        // GS k m d1...dk NUL
-        output.push(0x1D); // GS
-        output.push(0x6B); // k
-        output.push(self.barcode_type.value()); // m
-        output.extend_from_slice(data_bytes); // datos
-        output.push(0x00); // NUL
+    //     // Imprimir código de barras - Método 1 (con NUL)
+    //     // GS k m d1...dk NUL
+    //     output.push(0x1D); // GS
+    //     output.push(0x6B); // k
+    //     output.push(self.barcode_type.value()); // m
+    //     output.extend_from_slice(data_bytes); // datos
+    //     output.push(0x00); // NUL
 
-        output
-    }
+    //     output
+    // }
 
 }

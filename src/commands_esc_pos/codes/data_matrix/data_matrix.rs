@@ -97,13 +97,4 @@ impl DataMatrix {
             0x40, // fn = 64 (consultar)
         ]
     }
-
-    /// Getters para acceder a los valores
-    pub fn data(&self) -> &str {
-        &self.data
-    }
-
-    pub fn size(&self) -> DataMatrixSize {
-        self.size
-    }
 }
