@@ -13,9 +13,6 @@ mod mobile;
 mod commands;
 mod error;
 mod models;
-mod process;
-mod commands_esc_pos;
-mod drivers;
 
 pub use error::{Error, Result};
 
@@ -37,57 +34,8 @@ impl<R: Runtime, T: Manager<R>> crate::ThermalPrinterExt<R> for T {
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  let mut builder = Builder::new("thermal-printer");
-  
-  #[cfg(desktop)]
-  {
-    #[cfg(all(feature = "usb", feature = "serial_port"))]
-    {
-      builder = builder.invoke_handler(tauri::generate_handler![
-        commands::ping,
-        commands::list_system_printers,
-        commands::list_usb_devices,
-        commands::list_serial_ports,
-        commands::print
-      ]);
-    }
-    
-    #[cfg(all(feature = "usb", not(feature = "serial_port")))]
-    {
-      builder = builder.invoke_handler(tauri::generate_handler![
-        commands::ping,
-        commands::list_system_printers,
-        commands::list_usb_devices,
-        commands::print
-      ]);
-    }
-    
-    #[cfg(all(not(feature = "usb"), feature = "serial_port"))]
-    {
-      builder = builder.invoke_handler(tauri::generate_handler![
-        commands::ping,
-        commands::list_system_printers,
-        commands::list_serial_ports,
-        commands::print
-      ]);
-    }
-    
-    #[cfg(all(not(feature = "usb"), not(feature = "serial_port")))]
-    {
-      builder = builder.invoke_handler(tauri::generate_handler![
-        commands::ping,
-        commands::list_system_printers,
-        commands::print
-      ]);
-    }
-  }
-  
-  #[cfg(mobile)]
-  {
-    builder = builder.invoke_handler(tauri::generate_handler![commands::ping]);
-  }
-  
-  builder
+  Builder::new("thermal-printer")
+    .invoke_handler(tauri::generate_handler![commands::ping])
     .setup(|app, api| {
       #[cfg(mobile)]
       let thermal_printer = mobile::init(app, api)?;
