@@ -18,6 +18,7 @@ pub enum PrintSections {
     Pdf417(Pdf417),
     Imagen(Imagen),
     Logo(Logo),
+    Line(Line),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +80,7 @@ pub struct GlobalStyles {
 pub struct Table {
     pub columns: u8,
     pub column_widths: Vec<u8>,
-    pub header: Vec<String>,
+    pub header: Vec<Text>,
     pub body: Vec<Vec<Text>>,
     pub truncate: bool,
 }
@@ -130,4 +131,9 @@ pub struct Imagen {
 pub struct Logo {
     pub key_code: u8,
     pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Line {
+    pub character: String,
 }

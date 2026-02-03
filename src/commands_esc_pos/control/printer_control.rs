@@ -15,6 +15,12 @@ impl PrinterControl {
         vec![0x0A; lines]
     }
 
+    /// Salto de línea simple
+    /// LF
+    pub fn line_feed() -> Vec<u8> {
+        vec![0x0A]
+    }
+
     /// Retorno de carro
     /// CR
     // pub fn carriage_return() -> Vec<u8> {

@@ -1,6 +1,6 @@
 use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
 use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen, Logo, DataMatrixModel};
+use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen, Logo, DataMatrixModel, Table};
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::codes::barcode::{Barcode as EscPosBarcode, BarcodeType, BarcodeTextPosition};
@@ -8,6 +8,7 @@ use crate::commands_esc_pos::codes::qr::{QR, QRModel, QRSize, QRErrorCorrection}
 use crate::commands_esc_pos::codes::pdf417::{PDF417, PDF417ErrorCorrection};
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode, Logo as EscPosLogo};
 use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
+use crate::commands_esc_pos::text::table::process_table;
 
 pub struct ProcessPrint {
     current_styles: GlobalStyles,
@@ -51,6 +52,8 @@ impl ProcessPrint {
         for section in &print_job.sections {
             let section_data = self.process_print_section(section)?;
             document.extend(section_data);
+            // Agregar salto de línea después de cada sección
+            document.extend(PrinterControl::line_feed());
         }
 
         Ok(document)
@@ -72,9 +75,8 @@ impl ProcessPrint {
             PrintSections::Imagen(imagen) => self.process_imagen(imagen),
             PrintSections::Logo(logo) => self.process_logo(logo),
             PrintSections::DataMatrix(data_matrix) => self.process_data_matrix(data_matrix),
-            PrintSections::Table(_table) => {
-                // Implementar procesamiento de tablas si es necesario
-                Err("Table processing not implemented".to_string())}
+            PrintSections::Table(table) => self.process_table_fn(table),
+            PrintSections::Line(line) => self.process_line(line),
         }
     }
 
@@ -349,6 +351,58 @@ impl ProcessPrint {
         let esc_pos_data_matrix = DataMatrix::new(data_matrix.data.clone()).set_size(size);
 
         Ok(esc_pos_data_matrix.get_command())
+    }
+
+    fn process_table_fn(&mut self, table: &Table) -> Result<Vec<u8>, String> {
+        process_table(table, self.max_width, table.truncate)
+    }
+
+    /// Procesa línea horizontal
+    fn process_line(&mut self, line: &crate::models::print_sections::Line) -> Result<Vec<u8>, String> {
+        let mut output = Vec::new();
+        
+        // Calcular el número de caracteres según el ancho del papel y el tamaño de fuente
+        let char_count = self.calculate_line_width();
+        
+        // Obtener el primer carácter (o usar '-' por defecto)
+        let character = line.character.chars().next().unwrap_or('-');
+        
+        // Crear la línea repitiendo el carácter
+        let line_text = character.to_string().repeat(char_count);
+        
+        // Usar los estilos globales actuales
+        output.extend_from_slice(line_text.as_bytes());
+        
+        Ok(output)
+    }
+
+    /// Calcula el ancho de línea en caracteres según el papel y fuente actual
+    fn calculate_line_width(&self) -> usize {
+        // Ancho base según el tamaño del papel (en caracteres para Font A normal)
+        let base_width = match self.max_width {
+            384 => 32,  // 58mm
+            576 => 48,  // 80mm
+            832 => 64,  // 112mm
+            _ => 48,    // default 80mm
+        };
+
+        // Ajustar según el tamaño de fuente actual
+        let width_multiplier = match self.current_styles.size.as_str() {
+            "width" | "double" => 0.5,  // DoubleWidth or DoubleSize reduce characters per line
+            _ => 1.0,
+        };
+
+        // Ajustar según el tipo de fuente
+        let font_multiplier = match self.current_styles.font.as_str() {
+            "B" => 1.3,  // Font B es más pequeña, más caracteres
+            "C" => 1.5,  // Font C es aún más pequeña
+            _ => 1.0,    // Font A
+        };
+
+        let calculated_width = (base_width as f32 * width_multiplier * font_multiplier) as usize;
+        
+        // Asegurar al menos 10 caracteres
+        calculated_width.max(10)
     }
 
     fn set_global_styles(&mut self, styles: &GlobalStyles) -> Result<Vec<u8>, String> {
