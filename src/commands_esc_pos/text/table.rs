@@ -1,5 +1,4 @@
 use crate::models::print_sections::Table;
-use crate::commands_esc_pos::text::text_type::TextType;
 
 pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Vec<u8>, String> {
     if table.columns == 0 {
@@ -132,7 +131,7 @@ fn process_row(row: &[crate::models::print_sections::Text], column_widths: &[i32
         let mut line = String::new();
         for (i, cell) in cell_lines.iter().enumerate() {
             let part = if line_idx < cell.len() { &cell[line_idx] } else { "" };
-            let padded = format!("{:<width$}", part, width = column_widths.get(i).unwrap_or(&10) as usize);
+            let padded = format!("{:<width$}", part, width = *column_widths.get(i).unwrap_or(&10) as usize);
             line.push_str(&padded);
         }
         result.push(line.trim_end().to_string());

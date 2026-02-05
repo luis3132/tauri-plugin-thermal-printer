@@ -36,7 +36,7 @@ pub struct Subtitle {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Text {
     pub text: String,
-    pub styles: GlobalStyles,
+    pub styles: Option<GlobalStyles>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

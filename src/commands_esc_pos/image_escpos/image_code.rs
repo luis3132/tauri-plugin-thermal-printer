@@ -87,49 +87,49 @@ impl Image {
         Ok(output)
     }
 
-    /// Método alternativo usando modo bit image (ESC *)
-    /// Útil para impresoras más antiguas que no soportan GS v 0
-    /// NOTA: Este método puede no ser compatible con todas las impresoras móviles
-    pub fn get_command_bit_image(&self) -> Result<Vec<u8>, String> {
-        let mut output = Vec::new();
+    // /// Método alternativo usando modo bit image (ESC *)
+    // /// Útil para impresoras más antiguas que no soportan GS v 0
+    // /// NOTA: Este método puede no ser compatible con todas las impresoras móviles
+    // pub fn get_command_bit_image(&self) -> Result<Vec<u8>, String> {
+    //     let mut output = Vec::new();
 
-        let processed_image = ImageProcessor::process_image(
-            &self.base64_image,
-            self.max_width,
-            self.use_dithering
-        )?;
+    //     let processed_image = ImageProcessor::process_image(
+    //         &self.base64_image,
+    //         self.max_width,
+    //         self.use_dithering
+    //     )?;
 
-        let (width, height) = processed_image.dimensions();
-        let width_bytes = ((width + 7) / 8) as usize;
-        let image_data = ImageProcessor::image_to_bytes(&processed_image);
+    //     let (width, height) = processed_image.dimensions();
+    //     let width_bytes = ((width + 7) / 8) as usize;
+    //     let image_data = ImageProcessor::image_to_bytes(&processed_image);
 
-        // Establecer alineación
-        output.extend_from_slice(&[0x1B, 0x61, self.alignment.value()]);
+    //     // Establecer alineación
+    //     output.extend_from_slice(&[0x1B, 0x61, self.alignment.value()]);
 
-        // Imprimir línea por línea usando ESC * (Select bit-image mode)
-        for y in 0..height {
-            // ESC * m nL nH d1...dk
-            output.push(0x1B); // ESC
-            output.push(0x2A); // *
-            output.push(33);   // m = 33 (24-dot double-density)
+    //     // Imprimir línea por línea usando ESC * (Select bit-image mode)
+    //     for y in 0..height {
+    //         // ESC * m nL nH d1...dk
+    //         output.push(0x1B); // ESC
+    //         output.push(0x2A); // *
+    //         output.push(33);   // m = 33 (24-dot double-density)
 
-            let n_l = (width & 0xFF) as u8;
-            let n_h = ((width >> 8) & 0xFF) as u8;
-            output.push(n_l);
-            output.push(n_h);
+    //         let n_l = (width & 0xFF) as u8;
+    //         let n_h = ((width >> 8) & 0xFF) as u8;
+    //         output.push(n_l);
+    //         output.push(n_h);
 
-            // Escribir datos de la línea
-            let start_index = (y as usize) * width_bytes;
-            let end_index = (start_index + width_bytes).min(image_data.len());
-            output.extend_from_slice(&image_data[start_index..end_index]);
+    //         // Escribir datos de la línea
+    //         let start_index = (y as usize) * width_bytes;
+    //         let end_index = (start_index + width_bytes).min(image_data.len());
+    //         output.extend_from_slice(&image_data[start_index..end_index]);
 
-            // Nueva línea
-            output.push(0x0A); // LF
-        }
+    //         // Nueva línea
+    //         output.push(0x0A); // LF
+    //     }
 
-        // Restaurar alineación
-        output.extend_from_slice(&[0x1B, 0x61, 0x00]);
+    //     // Restaurar alineación
+    //     output.extend_from_slice(&[0x1B, 0x61, 0x00]);
 
-        Ok(output)
-    }
+    //     Ok(output)
+    // }
 }

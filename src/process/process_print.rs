@@ -12,7 +12,7 @@ use crate::commands_esc_pos::text::table::process_table;
 
 pub struct ProcessPrint {
     current_styles: GlobalStyles,
-    max_width: i32,
+    print_job_context: PrintJobRequest,
 }
 
 impl ProcessPrint {
@@ -29,7 +29,12 @@ impl ProcessPrint {
                 upside_down: false,
                 size: "normal".to_string(),
             },
-            max_width: 576, // Default to 80mm
+            print_job_context: PrintJobRequest {
+                printer: String::new(),
+                sections: Vec::new(),
+                options: Default::default(),
+                paper_size: crate::PaperSize::Mm80, // Default to 80mm
+            },
         }
     }
 
@@ -42,8 +47,7 @@ impl ProcessPrint {
             return Err("Printer not specified".to_string());
         }
 
-        // Set max width based on paper size
-        self.max_width = print_job.paper_size.pixels_width();
+        self.print_job_context = print_job.clone();
 
         let mut document: Vec<u8> = Vec::new();
 
@@ -54,6 +58,10 @@ impl ProcessPrint {
             document.extend(section_data);
             // Agregar salto de línea después de cada sección
             document.extend(PrinterControl::line_feed());
+        }
+
+        if self.print_job_context.options.open_cash_drawer {
+            document.extend(PrinterControl::open_cash_drawer_pin2(100));
         }
 
         Ok(document)
@@ -130,7 +138,7 @@ impl ProcessPrint {
         let mut output = Vec::new();
         
         // Usar estilos como están
-        let effective_styles = text.styles.clone();
+        let effective_styles = text.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
         
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
@@ -158,6 +166,11 @@ impl ProcessPrint {
 
     /// Procesa corte de papel
     fn process_cut(&mut self, cut: &Cut) -> Result<Vec<u8>, String> {
+
+        if !self.print_job_context.options.cut_paper {
+            return Ok(PrinterControl::line_feed_multiple(8));
+        }
+
         let mode_u8 = match cut.mode.as_str() {
             "full" => 0,
             "partial" => 1,
@@ -170,6 +183,11 @@ impl ProcessPrint {
 
     /// Procesa beep
     fn process_beep(&mut self, beep: &Beep) -> Result<Vec<u8>, String> {
+        // Verificar si el beep está habilitado en las opciones
+        if !self.print_job_context.options.beep {
+            return Ok(Vec::new());
+        }
+
         let mut times = beep.times;
         if times <= 0 {
             times = 1;
@@ -307,8 +325,8 @@ impl ProcessPrint {
             _ => ImageMode::Normal,
         };
 
-        let max_width = if imagen.max_width > self.max_width || imagen.max_width <= 0 {
-            self.max_width as u32
+        let max_width = if imagen.max_width > self.print_job_context.paper_size.pixels_width() || imagen.max_width <= 0 {
+            self.print_job_context.paper_size.pixels_width() as u32
         } else {
             imagen.max_width as u32
         };
@@ -354,7 +372,7 @@ impl ProcessPrint {
     }
 
     fn process_table_fn(&mut self, table: &Table) -> Result<Vec<u8>, String> {
-        process_table(table, self.max_width, table.truncate)
+        process_table(table, self.print_job_context.paper_size.pixels_width(), table.truncate)
     }
 
     /// Procesa línea horizontal
@@ -378,14 +396,6 @@ impl ProcessPrint {
 
     /// Calcula el ancho de línea en caracteres según el papel y fuente actual
     fn calculate_line_width(&self) -> usize {
-        // Ancho base según el tamaño del papel (en caracteres para Font A normal)
-        let base_width = match self.max_width {
-            384 => 32,  // 58mm
-            576 => 48,  // 80mm
-            832 => 64,  // 112mm
-            _ => 48,    // default 80mm
-        };
-
         // Ajustar según el tamaño de fuente actual
         let width_multiplier = match self.current_styles.size.as_str() {
             "width" | "double" => 0.5,  // DoubleWidth or DoubleSize reduce characters per line
@@ -399,7 +409,7 @@ impl ProcessPrint {
             _ => 1.0,    // Font A
         };
 
-        let calculated_width = (base_width as f32 * width_multiplier * font_multiplier) as usize;
+        let calculated_width = (self.print_job_context.paper_size.chars_per_line() as f32 * width_multiplier * font_multiplier) as usize;
         
         // Asegurar al menos 10 caracteres
         calculated_width.max(10)

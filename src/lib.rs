@@ -11,8 +11,11 @@ mod desktop;
 mod mobile;
 
 mod commands;
+mod commands_esc_pos;
 mod error;
 mod models;
+mod desktop_printers;
+mod process;
 
 pub use error::{Error, Result};
 
@@ -35,7 +38,7 @@ impl<R: Runtime, T: Manager<R>> crate::ThermalPrinterExt<R> for T {
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("thermal-printer")
-    .invoke_handler(tauri::generate_handler![commands::ping])
+    .invoke_handler(tauri::generate_handler![commands::print_thermal_printer, commands::list_thermal_printers, commands::test_thermal_printer])
     .setup(|app, api| {
       #[cfg(mobile)]
       let thermal_printer = mobile::init(app, api)?;
