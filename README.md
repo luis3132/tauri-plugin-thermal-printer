@@ -10,7 +10,35 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | Android  | x         |
 | iOS      | x         |
 
-there is not tested yet
+## Instalation
+
+### Rust
+
+```toml
+[dependencies]
+tauri-plugin-thermal-printer = { git } # it's not publicated yet
+```
+
+### Bun / NPN / PNPM
+
+```bash
+# it's not publicated yet
+```
+
+### Permission
+
+Modify the file in /file/to/proyect/capabilities/default.json, and add:
+
+```json
+{
+  "permissions": [
+    "core:default",
+    "thermal-printer:allow-list-thermal-printers",
+    "thermal-printer:allow-print-thermal-printer",
+    "thermal-printer:allow-test-thermal-printer"
+  ]
+}
+```
 
 ## Functions
 
@@ -18,11 +46,13 @@ This plugin has 3 functions:
 
 ### 1. List Printers
 
-Get all printers available in the system.
+Get all printers available in the system. It's just list the configurated printers...
 
 #### Request:
 ```typescript
-const response = await invoke("plugin:tauri-plugin-thermal-printer|list-thermal-printers")
+import { list_thermal_printers } from "tauri-plugin-thermal-printer-api";
+
+const response = await list_thermal_printers();
 ```
 
 #### Response
@@ -57,7 +87,9 @@ Send a print test to a specific printer to verify functionality.
 
 #### Request:
 ```typescript
-const response = await invoke("plugin:tauri-plugin-thermal-printer|test-thermal-printer", {
+import { test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer-api";
+
+const response = await test_thermal_printer({
   "printer_info": {
     "printer": "TM-T20II",
     "paper_size": "Mm80",
@@ -66,7 +98,7 @@ const response = await invoke("plugin:tauri-plugin-thermal-printer|test-thermal-
       "beep": true,
       "open_cash_drawer": false
     },
-    "sections": []
+    "sections": [] // it's not going to print something
   },
   "include_text": true,
   "include_text_styles": true,
@@ -85,7 +117,7 @@ const response = await invoke("plugin:tauri-plugin-thermal-printer|test-thermal-
   "test_all_fonts": false,
   "test_invert": false,
   "test_rotate": false
-})
+} as TestPrintRequest)
 ```
 
 #### Request parameters (TestPrintRequest):
@@ -112,7 +144,9 @@ const response = await invoke("plugin:tauri-plugin-thermal-printer|test-thermal-
 | `test_rotate` | boolean | ❌ No | Text rotation test (default: `false`) |
 
 #### Response:
-No response (void), or error if failed.
+Returns `boolean`:
+- `true`: Test completed successfully
+- `false`: Test failed
 
 ---
 
@@ -122,7 +156,9 @@ Print a personalized document with the specified sections.
 
 #### Request:
 ```typescript
-const response = await invoke("plugin:tauri-plugin-thermal-printer|print-thermal-printer", {
+import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer-api";
+
+const response = await print_thermal_printer({
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
@@ -147,8 +183,13 @@ const response = await invoke("plugin:tauri-plugin-thermal-printer|print-thermal
     {"Logo": {"key_code": 1, "mode": "normal"}},
     {"Line": {"character": "="}}
   ]
-})
+} as PrintJobRequest)
 ```
+
+#### Response:
+Returns `boolean`:
+- `true`: Print completed successfully
+- `false`: Print failed
 
 #### Main parameters (PrintJobRequest):
 
@@ -459,32 +500,31 @@ Prints a separator line.
 
 - `character` (string, required): Character for the line (e.g., "=", "-", "_")
 
-#### Global Styles
-
-Styles are defined in the GlobalStyles struct:
+##### GlobalStyles
+Changes the current global styles that will be applied to subsequent text sections. This allows you to set default styles without specifying them for each text element.
 
 ```json
 {
-    "global_styles": {
-        "bold": false,
-        "underline": false,
-        "align": "left",
-        "italic": false,
-        "invert": false,
-        "font": "A",
-        "rotate": false,
-        "upside_down": false,
-        "size": "normal"
-    }
+  "GlobalStyles": {
+    "bold": false,
+    "underline": false,
+    "align": "left",
+    "italic": false,
+    "invert": false,
+    "font": "A",
+    "rotate": false,
+    "upside_down": false,
+    "size": "normal"
+  }
 }
 ```
 
-- `bold` (boolean): Bold text
-- `underline` (boolean): Underlined text
-- `align` (string): Alignment ("left", "center", "right")
-- `italic` (boolean): Italic text
-- `invert` (boolean): Inverted text (black background)
-- `font` (string): Font ("A", "B", "C")
-- `rotate` (boolean): Text rotated 90 degrees
-- `upside_down` (boolean): Upside down text
-- `size` (string): Size ("normal", "double_height", "double_width", "double_size")
+- `bold` (boolean, required): Bold text
+- `underline` (boolean, required): Underlined text
+- `align` (string, required): Alignment ("left", "center", "right")
+- `italic` (boolean, required): Italic text
+- `invert` (boolean, required): Inverted text (black background)
+- `font` (string, required): Font ("A", "B", "C")
+- `rotate` (boolean, required): Text rotated 90 degrees
+- `upside_down` (boolean, required): Upside down text
+- `size` (string, required): Size ("normal", "double_height", "double_width", "double_size")

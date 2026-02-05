@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-test-thermal-printer"
+description = "Enables the test_thermal_printer command without any pre-configured scope."
+commands.allow = ["test_thermal_printer"]
+
+[[permission]]
+identifier = "deny-test-thermal-printer"
+description = "Denies the test_thermal_printer command without any pre-configured scope."
+commands.deny = ["test_thermal_printer"]

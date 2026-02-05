@@ -8,8 +8,8 @@ use crate::ThermalPrinterExt;
 pub(crate) async fn print_thermal_printer<R: Runtime>(
     app: AppHandle<R>,
     print_job_request: PrintJobRequest,
-) -> Result<()> {
-    app.thermal_printer().print_thermal_printer(print_job_request)
+) -> bool {
+    app.thermal_printer().print_thermal_printer(print_job_request).is_ok()
 }
 
 #[command]
@@ -23,6 +23,6 @@ pub(crate) async fn list_thermal_printers<R: Runtime>(
 pub(crate) async fn test_thermal_printer<R: Runtime>(
     app: AppHandle<R>,
     print_job_request: TestPrintRequest,
-) -> Result<()> {
-    app.thermal_printer().test_thermal_printer(print_job_request)
+) -> bool {
+    app.thermal_printer().test_thermal_printer(print_job_request).is_ok()
 }

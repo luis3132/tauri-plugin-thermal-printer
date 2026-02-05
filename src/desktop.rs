@@ -1,6 +1,7 @@
 use serde::de::DeserializeOwned;
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
+use crate::desktop_printers::unix_base::get_printers_info;
 use crate::models::*;
 use crate::process::process_print::ProcessPrint;
 use crate::process::process_print_test::TestPrinter;
@@ -21,7 +22,8 @@ impl<R: Runtime> ThermalPrinter<R> {
 
     pub fn list_thermal_printers(&self) -> crate::Result<Vec<PrinterInfo>> {
         if OS_NAME == "linux" || OS_NAME == "macos" {
-            crate::desktop_printers::unix_base::get_printers_info()
+            let printer = get_printers_info()?;
+            Ok(printer)
         } else {
             Err(crate::Error::UnsupportedPlatform)
         }
