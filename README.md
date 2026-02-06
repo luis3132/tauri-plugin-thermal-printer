@@ -54,6 +54,8 @@ tauri-plugin-thermal-printer = { git } # it's not published yet
 # it's not published yet
 ```
 
+This library not only contain the conector to the backend. Also add the types for the print structure...
+
 ### lib.rs
 
 Don't forget to add this line
