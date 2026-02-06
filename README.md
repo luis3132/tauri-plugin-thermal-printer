@@ -4,23 +4,24 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 
 | Platform | Supported |
 | -------- | --------- |
-| Linux    | ✓         |
-| macOS    | ?         |
-| Windows  | ?         |
-| Android  | x         |
-| iOS      | x         |
+| Linux    | ✅        |
+| macOS    | ✅        |
+| Windows  | ✅        |
+| Android  | ❌        |
+| iOS      | ❌        |
 
 ## Table of Contents
 
+- [How it Works](#how-it-works)
 - [Installation](#installation)
   - [Rust](#rust)
   - [Bun / NPM / PNPM](#bun--npm--pnpm)
   - [lib.rs](#librs)
   - [Permission](#permission)
 - [Functions](#functions)
-  - [1. List Printers](#1-list-printers)
-  - [2. Test Printer](#2-test-printer)
-  - [3. Print Document](#3-print-document)
+  - [List Printers](#1-list-printers)
+  - [Test Printer](#2-test-printer)
+  - [Print Document](#3-print-document)
 - [Section Types](#section-types)
   - [Title](#title)
   - [Subtitle](#subtitle)
@@ -38,6 +39,107 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [Logo](#logo)
   - [Line](#line)
   - [GlobalStyles](#globalstyles)
+- [Examples](#examples)
+
+## How it Works
+
+This plugin acts as a **translator** between a user-friendly JavaScript/TypeScript API and the low-level ESC/POS binary commands that thermal printers understand.
+
+### Architecture
+
+```
+Frontend (JavaScript/TypeScript) 
+    ↓ (IPC Commands)
+Tauri Core (Rust)
+    ↓ (Platform-specific implementations)
+Operating System (Linux/macOS/Windows)
+    ↓ (Raw binary data)
+Thermal Printer (ESC/POS protocol)
+```
+
+### Core Components
+
+#### 1. **Data Models** (`src/models/`)
+- **`PrintJobRequest`**: Main structure defining a print job
+- **`PrintSections`**: Enum with all printable content types (Title, Text, Table, QR, etc.)
+- **`GlobalStyles`**: Formatting styles (bold, alignment, size, etc.)
+
+#### 2. **Tauri Commands** (`src/commands.rs`)
+Three main functions exposed to the frontend:
+- `list_thermal_printers()`: Lists available printers
+- `print_thermal_printer()`: Prints a document
+- `test_thermal_printer()`: Runs functionality tests
+
+#### 3. **Print Processing** (`src/process/process_print.rs`)
+Converts data structures into ESC/POS binary commands:
+```rust
+pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u8>, String>
+```
+
+#### 4. **OS Integration** (`src/desktop_printers/`)
+- **Linux/macOS**: Uses CUPS system (`lpstat`, `lp` commands)
+- **Windows**: Uses PowerShell to access system printers
+- **Android**: Basic structure present, not yet implemented
+
+### Workflow
+
+#### Printing a Document:
+
+1. **Frontend** sends `PrintJobRequest` with sections and configuration
+2. **Tauri** receives the command and processes it in Rust
+3. **`ProcessPrint`** converts each section into ESC/POS commands
+4. **Operating System** sends binary data to the printer
+5. **Thermal Printer** interprets ESC/POS commands and prints
+
+#### Print Structure Example:
+```json
+{
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false
+  },
+  "sections": [
+    {"Title": {"text": "My Title"}},
+    {"Text": {"text": "Normal content"}},
+    {"Table": {"columns": 3, "body": [["A", "B", "C"]]}}
+  ]
+}
+```
+
+### ESC/POS Protocol
+
+The plugin translates all sections into **ESC/POS** (Escape Sequence for Point of Sale) commands, the de facto standard for thermal printers:
+
+- `\x1B\x40` - Initialize printer
+- `\x1B\x61\x01` - Center text
+- `\x1B\x45\x01` - Enable bold
+- etc.
+
+### Supported Content Types
+
+- **Text**: Title, Subtitle, Text with optional styles
+- **Codes**: QR, Barcode, DataMatrix, PDF417
+- **Media**: Images, Logos
+- **Control**: Feed, Cut, Beep, Cash Drawer
+- **Tables**: Configurable columns
+- **Lines**: Horizontal separators
+
+### Platform Status
+
+- ✅ **Linux**: Fully functional (CUPS)
+- ✅ **macOS**: Fully functional (CUPS)
+- ✅ **Windows**: Fully functional (PowerShell)
+- ❌ **Android**: Basic structure present, not implemented
+- ❌ **iOS**: Not implemented
+
+### Supported Connections
+
+- **USB**: Direct USB port connection
+- **Network**: TCP/IP (port 9100 typical)
+- **Serial**: RS-232 (less common)
+- **Bluetooth**: For Android (when implemented)
 
 ## Installation
 
@@ -81,9 +183,9 @@ Modify the file in /file/to/project/capabilities/default.json, and add:
 
 ## Functions
 
-This plugin has 3 functions:
+This plugin works, 
 
-### 1. List Printers
+### List Printers
 
 Get all printers available in the system. It just lists the configured printers...
 
@@ -120,7 +222,7 @@ const response = await list_thermal_printers();
 
 ---
 
-### 2. Test Printer
+### Test Printer
 
 Send a print test to a specific printer to verify functionality.
 
@@ -189,7 +291,7 @@ Returns `boolean`:
 
 ---
 
-### 3. Print Document
+### Print Document
 
 Print a personalized document with the specified sections.
 
