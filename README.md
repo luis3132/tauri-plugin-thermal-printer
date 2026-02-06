@@ -10,6 +10,35 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | Android  | x         |
 | iOS      | x         |
 
+## Table of Contents
+
+- [Installation](#installation)
+  - [Rust](#rust)
+  - [Bun / NPM / PNPM](#bun--npm--pnpm)
+  - [lib.rs](#librs)
+  - [Permission](#permission)
+- [Functions](#functions)
+  - [1. List Printers](#1-list-printers)
+  - [2. Test Printer](#2-test-printer)
+  - [3. Print Document](#3-print-document)
+- [Section Types](#section-types)
+  - [Title](#title)
+  - [Subtitle](#subtitle)
+  - [Text](#text)
+  - [Feed](#feed)
+  - [Cut](#cut)
+  - [Beep](#beep)
+  - [Drawer](#drawer)
+  - [Qr](#qr)
+  - [Barcode](#barcode)
+  - [Table](#table)
+  - [DataMatrix](#datamatrix)
+  - [Pdf417](#pdf417)
+  - [Imagen](#imagen)
+  - [Logo](#logo)
+  - [Line](#line)
+  - [GlobalStyles](#globalstyles)
+
 ## Installation
 
 ### Rust
@@ -19,13 +48,13 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 tauri-plugin-thermal-printer = { git } # it's not published yet
 ```
 
-### Bun / NPN / PNPM
+### Bun / NPM / PNPM
 
 ```bash
 # it's not published yet
 ```
 
-### Lib.rs
+### lib.rs
 
 Don't forget to add this line
 
@@ -35,7 +64,7 @@ Don't forget to add this line
 
 ### Permission
 
-Modify the file in /file/to/proyect/capabilities/default.json, and add:
+Modify the file in /file/to/project/capabilities/default.json, and add:
 
 ```json
 {
@@ -54,7 +83,7 @@ This plugin has 3 functions:
 
 ### 1. List Printers
 
-Get all printers available in the system. It's just list the configurated printers...
+Get all printers available in the system. It just lists the configured printers...
 
 #### Request:
 ```typescript
@@ -106,7 +135,7 @@ const response = await test_thermal_printer({
       "beep": true,
       "open_cash_drawer": false
     },
-    "sections": [] // it's not going to print something
+    "sections": [] // it's not going to print anything
   },
   "include_text": true,
   "include_text_styles": true,
@@ -237,8 +266,18 @@ Prints a title with forced double size and center alignment.
 }
 ```
 
+Or simply:
+
+```json
+{
+  "Title": {
+    "text": "My Title"
+  }
+}
+```
+
 - `text` (string, required): Title text
-- `styles` (GlobalStyles, required): Applied styles
+- `styles` (GlobalStyles, optional): Applied styles
 
 ##### Subtitle
 Prints a subtitle with forced bold and normal size.
@@ -262,8 +301,18 @@ Prints a subtitle with forced bold and normal size.
 }
 ```
 
+Or simply:
+
+```json
+{
+  "Subtitle": {
+    "text": "My Subtitle"
+  }
+}
+```
+
 - `text` (string, required): Subtitle text
-- `styles` (GlobalStyles, required): Applied styles
+- `styles` (GlobalStyles, optional): Applied styles
 
 ##### Text
 Prints simple text with optional styles.
@@ -286,6 +335,32 @@ Prints simple text with optional styles.
   }
 }
 ```
+
+Or 
+
+```json
+{
+  "Text": {
+    "text": "My Subtitle",
+    "styles": {
+      "bold": true,
+      "underline": true
+    }
+  }
+}
+```
+
+Or simple version
+
+```json
+{
+  "Text": {
+    "text": "My Subtitle"
+  }
+}
+```
+
+You can pick the style that you need, it's not necessary to declared all of them.
 
 - `text` (string, required): Text to print
 - `styles` (GlobalStyles, optional): Applied styles (defaults to current global styles)
@@ -527,12 +602,519 @@ Changes the current global styles that will be applied to subsequent text sectio
 }
 ```
 
-- `bold` (boolean, required): Bold text
-- `underline` (boolean, required): Underlined text
-- `align` (string, required): Alignment ("left", "center", "right")
-- `italic` (boolean, required): Italic text
-- `invert` (boolean, required): Inverted text (black background)
-- `font` (string, required): Font ("A", "B", "C")
-- `rotate` (boolean, required): Text rotated 90 degrees
-- `upside_down` (boolean, required): Upside down text
-- `size` (string, required): Size ("normal", "double_height", "double_width", "double_size")
+##### GlobalStyles
+Changes the current global styles that will be applied to subsequent text sections. This allows you to set default styles without specifying them for each text element.
+
+```json
+{
+  "GlobalStyles": {
+    "bold": false,
+    "underline": false,
+    "align": "left",
+    "italic": false,
+    "invert": false,
+    "font": "A",
+    "rotate": false,
+    "upside_down": false,
+    "size": "normal"
+  }
+}
+```
+
+- `bold` (boolean, optional): Bold text (default: `false`)
+- `underline` (boolean, optional): Underlined text (default: `false`)
+- `align` (string, optional): Alignment ("left", "center", "right") (default: `"left"`)
+- `italic` (boolean, optional): Italic text (default: `false`)
+- `invert` (boolean, optional): Inverted text (black background) (default: `false`)
+- `font` (string, optional): Font ("A", "B", "C") (default: `"A"`)
+- `rotate` (boolean, optional): Text rotated 90 degrees (default: `false`)
+- `upside_down` (boolean, optional): Upside down text (default: `false`)
+- `size` (string, optional): Size ("normal", "double_height", "double_width", "double_size") (default: `"normal"`)
+
+---
+
+## Examples
+
+This section contains practical examples for different use cases. Each example demonstrates how to structure print jobs for various business scenarios.
+
+> **NOTE:** Paper is automatically cut at the end of printing with a full cut. You don't need to add a `Cut` section manually unless you want a specific partial cut.
+
+### 🛒 Long Receipt (Supermarket - 80mm)
+
+```typescript
+import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer-api";
+
+const receipt: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "SUPERMERCADO LA ECONOMÍA", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Text": {"text": "Sucursal Centro", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Av. Juárez #1234, Col. Centro", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Tel: (555) 123-4567", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "RFC: SUPE850101ABC", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TICKET DE COMPRA", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Fecha: 14/10/2025 15:45:30", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Ticket: #0012345", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Cajero: María González", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Caja: 03", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Table": {
+      "columns": 4,
+      "column_widths": [5, 20, 11, 12],
+      "header": [
+        {"text": "CANT", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+        {"text": "DESCRIPCIÓN", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+        {"text": "P.U.", "styles": {"bold": true, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+        {"text": "TOTAL", "styles": {"bold": true, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+      ],
+      "body": [
+        [
+          {"text": "2", "styles": null},
+          {"text": "Leche Lala 1L", "styles": null},
+          {"text": "$22.50", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$45.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Pan Bimbo Blanco", "styles": null},
+          {"text": "$38.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$38.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "3", "styles": null},
+          {"text": "Coca Cola 600ml", "styles": null},
+          {"text": "$16.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$48.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Cereal Zucaritas", "styles": null},
+          {"text": "$75.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$75.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Azúcar 1kg", "styles": null},
+          {"text": "$25.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$25.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "="}},
+    {"Table": {
+      "columns": 2,
+      "column_widths": [32, 16],
+      "header": [],
+      "body": [
+        [
+          {"text": "SUBTOTAL:", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$1,280.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "IVA (16%):", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+          {"text": "$204.80", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TOTAL: $1,484.80", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Forma de Pago: EFECTIVO", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Table": {
+      "columns": 2,
+      "column_widths": [32, 16],
+      "header": [],
+      "body": [
+        [
+          {"text": "Pago con:", "styles": null},
+          {"text": "$1,500.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "Cambio:", "styles": null},
+          {"text": "$15.20", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "Artículos: 25", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Ahorro total: $85.50", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "¡GRACIAS POR SU COMPRA!", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Vuelva pronto", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "www.supereconomia.com", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Qr": {"data": "https://supereconomia.com/ticket/0012345", "size": 5, "error_correction": "M", "model": 2}},
+    {"Barcode": {"data": "0012345", "barcode_type": "CODE128", "width": 2, "height": 50, "text_position": "below"}},
+    {"Feed": {"feed_type": "lines", "value": 3}}
+  ]
+};
+
+await print_thermal_printer(receipt);
+```
+
+---
+
+### 🍕 Restaurant Ticket (80mm)
+
+```typescript
+const restaurantTicket: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "RESTAURANTE EL BUEN SABOR", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Text": {"text": "Comida Mexicana", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Tel: (555) 987-6543", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "ORDEN #145", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Mesa: 12", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Mesero: Carlos Ruiz", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Fecha: 14/10/2025 14:30", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Table": {
+      "columns": 3,
+      "column_widths": [5, 28, 15],
+      "header": [
+        {"text": "CANT", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+        {"text": "PLATILLO", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}},
+        {"text": "PRECIO", "styles": {"bold": true, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+      ],
+      "body": [
+        [
+          {"text": "2", "styles": null},
+          {"text": "Tacos al Pastor", "styles": null},
+          {"text": "$45.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Enchiladas Verdes", "styles": null},
+          {"text": "$85.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Pozole Grande", "styles": null},
+          {"text": "$95.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "3", "styles": null},
+          {"text": "Refresco 600ml", "styles": null},
+          {"text": "$36.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "1", "styles": null},
+          {"text": "Agua de Horchata", "styles": null},
+          {"text": "$25.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "="}},
+    {"Table": {
+      "columns": 2,
+      "column_widths": [32, 16],
+      "header": [],
+      "body": [
+        [
+          {"text": "SUBTOTAL:", "styles": null},
+          {"text": "$286.00", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ],
+        [
+          {"text": "Propina Sugerida (10%):", "styles": null},
+          {"text": "$28.60", "styles": {"bold": false, "underline": false, "align": "right", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TOTAL: $314.60", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "¡Gracias por su visita!", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Esperamos verlo pronto", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Feed": {"feed_type": "lines", "value": 3}}
+  ]
+};
+```
+
+---
+
+### 👨‍🍳 Kitchen Order (80mm)
+
+```typescript
+const kitchenOrder: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": true,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "*** COMANDA COCINA ***", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Text": {"text": "Orden: #145", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Mesa: 12", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Hora: 14:30", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "2x TACOS AL PASTOR", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "   - Sin cebolla", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "   - Extra cilantro", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "1x ENCHILADAS VERDES", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "   - Término medio", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "1x POZOLE GRANDE", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "   - Extra rábanos", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "   - Sin orégano", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Mesero: Carlos", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Notas: Cliente regular", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Feed": {"feed_type": "lines", "value": 3}},
+    {"Beep": {"times": 2, "duration": 100}}
+  ]
+};
+```
+
+---
+
+### 🏷️ Product Label (58mm)
+
+```typescript
+const productLabel: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm58",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "PRODUCTO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "Nombre: Laptop HP", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Modelo: 15-dy2021la", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "UPC: 7501234567890", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "PRECIO: $12,999.00", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Barcode": {"data": "7501234567890", "barcode_type": "EAN13", "width": 2, "height": 50, "text_position": "below"}},
+    {"Feed": {"feed_type": "lines", "value": 2}}
+  ]
+};
+```
+
+---
+
+### 🎟️ Service Turn Ticket (58mm)
+
+```typescript
+const turnTicket: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm58",
+  "options": {
+    "cut_paper": true,
+    "beep": true,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "TICKET DE TURNO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "A-123", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Servicio: Cajas", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Fecha: 14/10/2025", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Hora: 15:45", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "En espera: 8 turnos", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Tiempo aprox: 20 min", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Qr": {"data": "A-123", "size": 4, "error_correction": "L", "model": 2}},
+    {"Text": {"text": "Escanea para consultar", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Feed": {"feed_type": "lines", "value": 2}},
+    {"Beep": {"times": 1, "duration": 100}}
+  ]
+};
+```
+
+---
+
+### 🚗 Parking Ticket (80mm)
+
+```typescript
+const parkingTicket: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "ESTACIONAMIENTO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Subtitle": {"text": "PLAZA COMERCIAL", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Ticket: E-5678", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Entrada: 14/10/2025 10:15", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Caseta: A-01", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "Vehículo: ABC-1234", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Nivel: 2 - Zona B", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TARIFAS:", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Primera hora: $20.00", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Hora adicional: $15.00", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Máximo 24hrs: $180.00", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "CONSERVE SU TICKET", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Para salida y pago", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Barcode": {"data": "E5678", "barcode_type": "CODE128", "width": 2, "height": 60, "text_position": "below"}},
+    {"Feed": {"feed_type": "lines", "value": 3}}
+  ]
+};
+```
+
+---
+
+### 🎫 Event Ticket (80mm)
+
+```typescript
+const eventTicket: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "CONCIERTO 2025", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Subtitle": {"text": "BANDA ROCK NACIONAL", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Boleto: #A-1234567", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Fecha: 25/10/2025", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Hora: 20:00 hrs", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Lugar: Auditorio Nacional", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Table": {
+      "columns": 2,
+      "column_widths": [24, 24],
+      "header": [],
+      "body": [
+        [
+          {"text": "Zona:", "styles": null},
+          {"text": "Preferente A", "styles": null}
+        ],
+        [
+          {"text": "Fila:", "styles": null},
+          {"text": "12", "styles": null}
+        ],
+        [
+          {"text": "Asiento:", "styles": null},
+          {"text": "45", "styles": null}
+        ]
+      ],
+      "truncate": false
+    }},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "PRECIO: $850.00", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Titular: Juan Pérez", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "ID: 1234567890", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "IMPORTANTE:", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "- Presentar identificación", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "- Llegar 30 min antes", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "- No se permiten reembolsos", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Qr": {"data": "TICKET-A1234567-CONCIERTO2025", "size": 6, "error_correction": "H", "model": 2}},
+    {"Barcode": {"data": "A1234567", "barcode_type": "CODE128", "width": 2, "height": 60, "text_position": "below"}},
+    {"Feed": {"feed_type": "lines", "value": 3}}
+  ]
+};
+```
+
+---
+
+### 💳 Payment Receipt (80mm)
+
+```typescript
+const paymentReceipt: PrintJobRequest = {
+  "printer": "TM-T20II",
+  "paper_size": "Mm80",
+  "options": {
+    "cut_paper": true,
+    "beep": false,
+    "open_cash_drawer": false
+  },
+  "sections": [
+    {"Title": {"text": "COMPROBANTE DE PAGO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Banco Nacional", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Sucursal Centro", "styles": {"bold": false, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Operación: 987654321", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Fecha: 14/10/2025 16:23:45", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TRANSFERENCIA ELECTRÓNICA", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "De:", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "  Cuenta: ****5678", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "  Nombre: Juan Pérez", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "Para:", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "  Cuenta: ****9012", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "  Nombre: María López", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "MONTO: $5,000.00 MXN", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Concepto:", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Pago de renta mensual", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "-"}},
+    {"Text": {"text": "Comisión: $0.00", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "IVA: $0.00", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "TOTAL: $5,000.00", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Line": {"character": "="}},
+    {"Text": {"text": "Estado: EXITOSA", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Referencia: 123456789012345", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Text": {"text": "Folio fiscal: ABCD-1234-EFGH", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Feed": {"feed_type": "lines", "value": 3}}
+  ]
+};
+```
+
+---
+
+### 📋 Summary
+
+#### Tables
+- **Columns**: Supports 2, 3, or 4 columns
+- **Column widths** are optional - distributed automatically if not specified
+- **Important**: Sum of widths should not exceed 48 characters (80mm) or 32 characters (58mm)
+
+#### QR Codes
+- **Size**: 1-10 (recommended: 5-6)
+- **Error correction**: `"L"` (7%), `"M"` (15%), `"Q"` (25%), `"H"` (30%)
+- **Model**: 1 or 2 (recommended: 2)
+
+#### Barcodes
+- **Types**: UPC-A, UPC-E, EAN13, EAN8, CODE39, ITF, CODABAR, CODE93, CODE128
+- **Height**: 30-100 dots (recommended: 50-60)
+- **Text position**: `"not_printed"`, `"above"`, `"below"`, `"both"`
+
+#### Styles
+- Bold, underline, and invert styles are automatically reset after each section
+- No need to manually reset styles
+
+#### Paper Cutting
+- **Automatic**: Paper is automatically cut at the end with a full cut
+- **Manual** (optional): Add a `Cut` section if you need a specific partial cut

@@ -24,13 +24,13 @@ pub enum PrintSections {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Title {
     pub text: String,
-    pub styles: GlobalStyles,
+    pub styles: Option<GlobalStyles>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subtitle {
     pub text: String,
-    pub styles: GlobalStyles,
+    pub styles: Option<GlobalStyles>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,15 +65,31 @@ pub struct Drawer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalStyles {
-    pub bold: bool,
-    pub underline: bool,
-    pub align: String,
-    pub italic: bool,
-    pub invert: bool,
-    pub font: String,
-    pub rotate: bool,
-    pub upside_down: bool,
-    pub size: String,
+    pub bold: Option<bool>,
+    pub underline: Option<bool>,
+    pub align: Option<String>,
+    pub italic: Option<bool>,
+    pub invert: Option<bool>,
+    pub font: Option<String>,
+    pub rotate: Option<bool>,
+    pub upside_down: Option<bool>,
+    pub size: Option<String>,
+}
+
+impl Default for GlobalStyles {
+    fn default() -> Self {
+        Self {
+            bold: Some(false),
+            underline: Some(false),
+            align: Some("left".to_string()),
+            italic: Some(false),
+            invert: Some(false),
+            font: Some("A".to_string()),
+            rotate: Some(false),
+            upside_down: Some(false),
+            size: Some("normal".to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

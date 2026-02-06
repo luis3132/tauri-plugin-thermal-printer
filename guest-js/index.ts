@@ -9,25 +9,25 @@ export interface PrinterOptions {
 }
 
 export interface GlobalStyles {
-  bold: boolean
-  underline: boolean
-  align: string
-  italic: boolean
-  invert: boolean
-  font: string
-  rotate: boolean
-  upside_down: boolean
-  size: string
+  bold?: boolean
+  underline?: boolean
+  align?: string
+  italic?: boolean
+  invert?: boolean
+  font?: string
+  rotate?: boolean
+  upside_down?: boolean
+  size?: string
 }
 
 export interface Title {
   text: string
-  styles: GlobalStyles
+  styles?: GlobalStyles
 }
 
 export interface Subtitle {
   text: string
-  styles: GlobalStyles
+  styles?: GlobalStyles
 }
 
 export interface Text {

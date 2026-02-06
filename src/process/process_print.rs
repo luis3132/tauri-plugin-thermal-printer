@@ -18,17 +18,7 @@ pub struct ProcessPrint {
 impl ProcessPrint {
     pub fn new() -> Self {
         Self {
-            current_styles: GlobalStyles {
-                bold: false,
-                underline: false,
-                align: "left".to_string(),
-                italic: false,
-                invert: false,
-                font: "A".to_string(),
-                rotate: false,
-                upside_down: false,
-                size: "normal".to_string(),
-            },
+            current_styles: GlobalStyles::default(),
             print_job_context: PrintJobRequest {
                 printer: String::new(),
                 sections: Vec::new(),
@@ -96,9 +86,12 @@ impl ProcessPrint {
     fn process_title(&mut self, title: &Title) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
         
+        // Usar estilos proporcionados o estilos globales actuales
+        let base_styles = title.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
+        
         // Forzar tamaño doble
-        let mut effective_styles = title.styles.clone();
-        effective_styles.size = "Double".to_string();
+        let mut effective_styles = base_styles;
+        effective_styles.size = Some("Double".to_string());
         
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
@@ -118,10 +111,13 @@ impl ProcessPrint {
     fn process_subtitle(&mut self, subtitle: &Subtitle) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
         
+        // Usar estilos proporcionados o estilos globales actuales
+        let base_styles = subtitle.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
+        
         // Forzar estilos: tamaño normal y negrita
-        let mut effective_styles = subtitle.styles.clone();
-        effective_styles.size = "normal".to_string();
-        effective_styles.bold = true;
+        let mut effective_styles = base_styles;
+        effective_styles.size = Some("normal".to_string());
+        effective_styles.bold = Some(true);
         
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
@@ -401,13 +397,15 @@ impl ProcessPrint {
     /// Calcula el ancho de línea en caracteres según el papel y fuente actual
     fn calculate_line_width(&self) -> usize {
         // Ajustar según el tamaño de fuente actual
-        let width_multiplier = match self.current_styles.size.as_str() {
+        let current_size = self.current_styles.size.as_deref().unwrap_or("normal");
+        let width_multiplier = match current_size {
             "width" | "double" => 0.5,  // DoubleWidth or DoubleSize reduce characters per line
             _ => 1.0,
         };
 
         // Ajustar según el tipo de fuente
-        let font_multiplier = match self.current_styles.font.as_str() {
+        let current_font = self.current_styles.font.as_deref().unwrap_or("A");
+        let font_multiplier = match current_font {
             "B" => 1.3,  // Font B es más pequeña, más caracteres
             "C" => 1.5,  // Font C es aún más pequeña
             _ => 1.0,    // Font A
@@ -428,74 +426,104 @@ impl ProcessPrint {
     fn get_styles_diff(&self, old: &GlobalStyles, new: &GlobalStyles) -> Vec<u8> {
         let mut output = Vec::new();
 
-        if old.bold != new.bold {
-            if new.bold {
+        // Helper functions to get effective values with defaults
+        let get_bool = |opt: &Option<bool>| opt.unwrap_or(false);
+        let get_string = |opt: &Option<String>| opt.as_deref().unwrap_or("").to_string();
+
+        let old_bold = get_bool(&old.bold);
+        let new_bold = get_bool(&new.bold);
+        if old_bold != new_bold {
+            if new_bold {
                 output.extend_from_slice(TextType::BoldOn.command());
             } else {
                 output.extend_from_slice(TextType::BoldOff.command());
             }
         }
-        if old.underline != new.underline {
-            if new.underline {
+
+        let old_underline = get_bool(&old.underline);
+        let new_underline = get_bool(&new.underline);
+        if old_underline != new_underline {
+            if new_underline {
                 output.extend_from_slice(TextType::UnderlineOn.command());
             } else {
                 output.extend_from_slice(TextType::UnderlineOff.command());
             }
         }
-        if old.italic != new.italic {
-            if new.italic {
+
+        let old_italic = get_bool(&old.italic);
+        let new_italic = get_bool(&new.italic);
+        if old_italic != new_italic {
+            if new_italic {
                 output.extend_from_slice(TextType::ItalicOn.command());
             } else {
                 output.extend_from_slice(TextType::ItalicOff.command());
             }
         }
-        if old.invert != new.invert {
-            if new.invert {
+
+        let old_invert = get_bool(&old.invert);
+        let new_invert = get_bool(&new.invert);
+        if old_invert != new_invert {
+            if new_invert {
                 output.extend_from_slice(TextType::InvertOn.command());
             } else {
                 output.extend_from_slice(TextType::InvertOff.command());
             }
         }
-        if old.rotate != new.rotate {
-            if new.rotate {
+
+        let old_rotate = get_bool(&old.rotate);
+        let new_rotate = get_bool(&new.rotate);
+        if old_rotate != new_rotate {
+            if new_rotate {
                 output.extend_from_slice(TextType::RotateOn.command());
             } else {
                 output.extend_from_slice(TextType::RotateOff.command());
             }
         }
-        if old.upside_down != new.upside_down {
-            if new.upside_down {
+
+        let old_upside_down = get_bool(&old.upside_down);
+        let new_upside_down = get_bool(&new.upside_down);
+        if old_upside_down != new_upside_down {
+            if new_upside_down {
                 output.extend_from_slice(TextType::UpsideDownOn.command());
             } else {
                 output.extend_from_slice(TextType::UpsideDownOff.command());
             }
         }
-        if old.font != new.font {
-            if new.font == "A" {
+
+        let old_font = get_string(&old.font);
+        let new_font = get_string(&new.font);
+        if old_font != new_font {
+            if new_font == "A" {
                 output.extend_from_slice(TextType::FontA.command());
-            } else if new.font == "B" {
+            } else if new_font == "B" {
                 output.extend_from_slice(TextType::FontB.command());
-            } else if new.font == "C" {
+            } else if new_font == "C" {
                 output.extend_from_slice(TextType::FontC.command());
             }
         }
-        if old.size != new.size {
-            if new.size == "normal" {
+
+        let old_size = get_string(&old.size);
+        let new_size = get_string(&new.size);
+        if old_size != new_size {
+            if new_size == "normal" {
                 output.extend_from_slice(TextType::Normal.command());
-            } else if new.size == "width" {
+            } else if new_size == "width" {
                 output.extend_from_slice(TextType::DoubleWidth.command());
-            } else if new.size == "height" {
+            } else if new_size == "height" {
                 output.extend_from_slice(TextType::DoubleHeight.command());
-            } else if new.size == "double" {
+            } else if new_size == "double" {
                 output.extend_from_slice(TextType::DoubleSize.command());
             }
         }
-        if old.align != new.align {
-            if new.align == "left" {
+
+        let old_align = get_string(&old.align);
+        let new_align = get_string(&new.align);
+        if old_align != new_align {
+            if new_align == "left" {
                 output.extend_from_slice(TextType::AlignLeft.command());
-            } else if new.align == "center" {
+            } else if new_align == "center" {
                 output.extend_from_slice(TextType::AlignCenter.command());
-            } else if new.align == "right" {
+            } else if new_align == "right" {
                 output.extend_from_slice(TextType::AlignRight.command());
             }
         }
