@@ -1,7 +1,8 @@
 use serde::de::DeserializeOwned;
 use tauri::{plugin::PluginApi, AppHandle, Runtime};
 
-use crate::desktop_printers::unix_base::get_printers_info;
+use crate::desktop_printers::unix_base::{get_printers_info, print_raw_data};
+use crate::desktop_printers::windows::{get_printers_info_win, print_raw_data_win};
 use crate::models::*;
 use crate::process::process_print::ProcessPrint;
 use crate::process::process_print_test::TestPrinter;
@@ -24,6 +25,14 @@ impl<R: Runtime> ThermalPrinter<R> {
         if OS_NAME == "linux" || OS_NAME == "macos" {
             let printer = get_printers_info()?;
             Ok(printer)
+        } else if OS_NAME == "windows" {
+            let printer = get_printers_info_win()
+                .map_err(|err| {
+                    let err_msg = format!("Error getting printers info: {}", err);
+                    println!("{}", err_msg);
+                    crate::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, err_msg))
+                })?;
+            Ok(printer)
         } else {
             Err(crate::Error::UnsupportedPlatform)
         }
@@ -37,10 +46,23 @@ impl<R: Runtime> ThermalPrinter<R> {
                     println!("Error generating document: {}", err);
                     crate::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
                 })?;
-            crate::desktop_printers::unix_base::print_raw_data(&print_job_request.printer, &data)
+            print_raw_data(&print_job_request.printer, &data)
                 .map_err(|err| {
                     println!("Error printing raw data: {}", err);
                     err
+                })?;
+            Ok(())
+        } else if OS_NAME == "windows" {
+            let mut process_print = ProcessPrint::new();
+            let data = process_print.generate_document(&print_job_request)
+                .map_err(|err| {
+                    println!("Error generating document: {}", err);
+                    crate::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+                })?;
+            print_raw_data_win(&print_job_request.printer, &data)
+                .map_err(|err| {
+                    println!("Error printing raw data: {}", err);
+                    crate::Error::Io(err)
                 })?;
             Ok(())
         } else {
@@ -48,18 +70,31 @@ impl<R: Runtime> ThermalPrinter<R> {
         }
     }
 
-    pub fn test_thermal_printer(&self, print_test_request: TestPrintRequest) -> crate::Result<()> {
+    pub fn test_thermal_printer(&self, print_job_request: TestPrintRequest) -> crate::Result<()> {
         if OS_NAME == "linux" || OS_NAME == "macos" {
             let mut process_print = TestPrinter::new();
-            let data = process_print.generate_test_document(&print_test_request)
+            let data = process_print.generate_test_document(&print_job_request)
                 .map_err(|err| {
                     println!("Error generating document: {}", err);
                     crate::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
                 })?;
-            crate::desktop_printers::unix_base::print_raw_data(&print_test_request.printer_info.printer, &data)
+            crate::desktop_printers::unix_base::print_raw_data(&print_job_request.printer_info.printer, &data)
                 .map_err(|err| {
                     println!("Error printing raw data: {}", err);
                     err
+                })?;
+            Ok(())
+        } else if OS_NAME == "windows" {
+            let mut process_print = TestPrinter::new();
+            let data = process_print.generate_test_document(&print_job_request)
+                .map_err(|err| {
+                    println!("Error generating document: {}", err);
+                    crate::Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+                })?;
+            print_raw_data_win(&print_job_request.printer_info.printer, &data)
+                .map_err(|err| {
+                    println!("Error printing raw data: {}", err);
+                    crate::Error::Io(err)
                 })?;
             Ok(())
         } else {

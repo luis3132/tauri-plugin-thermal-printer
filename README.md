@@ -6,23 +6,31 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | -------- | --------- |
 | Linux    | ✓         |
 | macOS    | ?         |
-| Windows  | x         |
+| Windows  | ?         |
 | Android  | x         |
 | iOS      | x         |
 
-## Instalation
+## Installation
 
 ### Rust
 
 ```toml
 [dependencies]
-tauri-plugin-thermal-printer = { git } # it's not publicated yet
+tauri-plugin-thermal-printer = { git } # it's not published yet
 ```
 
 ### Bun / NPN / PNPM
 
 ```bash
-# it's not publicated yet
+# it's not published yet
+```
+
+### Lib.rs
+
+Don't forget to add this line
+
+```rust
+.plugin(tauri_plugin_thermal_printer::init())
 ```
 
 ### Permission
@@ -409,7 +417,7 @@ Prints a table.
 
 - `columns` (number, required): Number of columns
 - `column_widths` (array, required): Widths of each column
-- `header` (array, optional): Column headers (array of Text objects)
+- `header` (array, required): Column headers (array of Text objects)
 - `body` (array, required): Data rows (array of arrays of Text objects)
 - `truncate` (boolean, optional): Truncate long text (default: false)
 
