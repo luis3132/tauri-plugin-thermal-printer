@@ -284,12 +284,12 @@ impl TestPrinter {
         let table = Table {
             columns: 3,
             truncate: true,
-            column_widths: vec![25, 8, 15],
-            header: vec![
+            column_widths: Some(vec![25, 8, 15]),
+            header: Some(vec![
                 Text { text: "Producto".to_string(), styles: None },
                 Text { text: "Cant".to_string(), styles: None },
                 Text { text: "Precio".to_string(), styles: None },
-            ],
+            ]),
             body: vec![
                 vec![
                     Text { text: "Producto A".to_string(), styles: None },

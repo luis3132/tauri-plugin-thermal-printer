@@ -57,8 +57,8 @@ export interface Drawer {
 
 export interface Table {
   columns: number
-  column_widths: number[]
-  header: Text[]
+  column_widths?: number[]
+  header?: Text[]
   body: Text[][]
   truncate: boolean
 }

@@ -204,8 +204,8 @@ const response = await print_thermal_printer({
     "open_cash_drawer": false
   },
   "sections": [
-    {"Title": {"text": "My Business", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
-    {"Subtitle": {"text": "Date: 01/01/2000", "styles": {"bold": true, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
+    {"Title": {"text": "My Business"}},
+    {"Subtitle": {"text": "Date: 01/01/2000"}},
     {"Text": {"text": "Normal text", "styles": {"bold": false, "underline": false, "align": "left", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "normal"}}},
     {"Feed": {"feed_type": "lines", "value": 3}},
     {"Cut": {"mode": "full", "feed": 3}},
@@ -216,7 +216,7 @@ const response = await print_thermal_printer({
     {"Table": {"columns": 3, "column_widths": [10, 15, 10], "header": [{"text": "Col1"}, {"text": "Col2"}, {"text": "Col3"}], "body": [[{"text": "Data1"}, {"text": "Data2"}, {"text": "Data3"}]], "truncate": false}},
     {"DataMatrix": {"data": "DataMatrix data", "size": 5}},
     {"Pdf417": {"data": "PDF417 data", "columns": 2, "rows": 5, "width": 3, "height": 5, "error_correction": 2}},
-    {"Imagen": {"data": "base64_encoded_image", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
+    {"Imagen": {"data": "{please introduce a base64 data image}", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
     {"Logo": {"key_code": 1, "mode": "normal"}},
     {"Line": {"character": "="}}
   ]
@@ -490,9 +490,26 @@ Prints a table.
 }
 ```
 
+Or simply:
+
+```json
+{
+  "Table": {
+    "columns": 3,
+    "body": [
+      [
+        {"text": "Data1"},
+        {"text": "Data2"},
+        {"text": "Data3"}
+      ]
+    ]
+  }
+}
+```
+
 - `columns` (number, required): Number of columns
-- `column_widths` (array, required): Widths of each column
-- `header` (array, required): Column headers (array of Text objects)
+- `column_widths` (array, optional): Widths of each column. If not provided, columns will be evenly distributed across the paper width
+- `header` (array, optional): Column headers (array of Text objects)
 - `body` (array, required): Data rows (array of arrays of Text objects)
 - `truncate` (boolean, optional): Truncate long text (default: false)
 

@@ -84,17 +84,17 @@ impl DataMatrix {
         output
     }
 
-    /// Verifica si la impresora soporta DataMatrix
-    /// Retorna un comando de consulta (no todas las impresoras responden)
-    pub fn check_support() -> Vec<u8> {
-        vec![
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x02, // pL
-            0x00, // pH
-            0x32, // cn = 50
-            0x40, // fn = 64 (consultar)
-        ]
-    }
+    // /// Verifica si la impresora soporta DataMatrix
+    // /// Retorna un comando de consulta (no todas las impresoras responden)
+    // pub fn check_support() -> Vec<u8> {
+    //     vec![
+    //         0x1D, // GS
+    //         0x28, // (
+    //         0x6B, // k
+    //         0x02, // pL
+    //         0x00, // pH
+    //         0x32, // cn = 50
+    //         0x40, // fn = 64 (consultar)
+    //     ]
+    // }
 }

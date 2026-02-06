@@ -364,6 +364,16 @@ impl ProcessPrint {
             4 => DataMatrixSize::Size4,
             5 => DataMatrixSize::Size5,
             6 => DataMatrixSize::Size6,
+            7 => DataMatrixSize::Size7,
+            8 => DataMatrixSize::Size8,
+            9 => DataMatrixSize::Size9,
+            10 => DataMatrixSize::Size10,
+            11 => DataMatrixSize::Size11,
+            12 => DataMatrixSize::Size12,
+            13 => DataMatrixSize::Size13,
+            14 => DataMatrixSize::Size14,
+            15 => DataMatrixSize::Size15,
+            16 => DataMatrixSize::Size16,
             _ => DataMatrixSize::Size6,
         };
         let esc_pos_data_matrix = DataMatrix::new(data_matrix.data.clone()).set_size(size);

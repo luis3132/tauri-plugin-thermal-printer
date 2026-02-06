@@ -95,8 +95,8 @@ impl Default for GlobalStyles {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
     pub columns: u8,
-    pub column_widths: Vec<u8>,
-    pub header: Vec<Text>,
+    pub column_widths: Option<Vec<u8>>,
+    pub header: Option<Vec<Text>>,
     pub body: Vec<Vec<Text>>,
     pub truncate: bool,
 }

@@ -184,17 +184,17 @@ impl PDF417 {
         output
     }
 
-    /// Verifica si la impresora soporta PDF417
-    /// Retorna un comando de consulta (no todas las impresoras responden)
-    pub fn check_support() -> Vec<u8> {
-        vec![
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x02, // pL
-            0x00, // pH
-            0x30, // cn = 48
-            0x40, // fn = 64 (consultar)
-        ]
-    }
+    // /// Verifica si la impresora soporta PDF417
+    // /// Retorna un comando de consulta (no todas las impresoras responden)
+    // pub fn check_support() -> Vec<u8> {
+    //     vec![
+    //         0x1D, // GS
+    //         0x28, // (
+    //         0x6B, // k
+    //         0x02, // pL
+    //         0x00, // pH
+    //         0x30, // cn = 48
+    //         0x40, // fn = 64 (consultar)
+    //     ]
+    // }
 }

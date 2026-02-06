@@ -8,9 +8,15 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
     let num_columns = table.columns as usize;
 
     // Calcular anchos de columnas
-    let column_widths: Vec<i32> = if table.column_widths.len() == num_columns {
-        table.column_widths.iter().map(|&w| w as i32).collect()
+    let column_widths: Vec<i32> = if let Some(widths) = &table.column_widths {
+        if widths.len() == num_columns {
+            widths.iter().map(|&w| w as i32).collect()
+        } else {
+            let equal_width = max_width / num_columns as i32;
+            vec![equal_width; num_columns]
+        }
     } else {
+        // Si no se proporcionan anchos, distribuir uniformemente
         let equal_width = max_width / num_columns as i32;
         vec![equal_width; num_columns]
     };
@@ -25,19 +31,21 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
         let column_groups = split_columns_into_groups(&column_widths, max_width);
         
         // Procesar header
-        if !table.header.is_empty() {
-            for group in &column_groups {
-                let group_cells: Vec<_> = group.iter()
-                    .filter_map(|&idx| table.header.get(idx))
-                    .cloned()
-                    .collect();
-                let group_widths: Vec<i32> = group.iter()
-                    .filter_map(|&idx| column_widths.get(idx).copied())
-                    .collect();
-                let row_lines = process_row(&group_cells, &group_widths, truncate);
-                for line in row_lines {
-                    output.extend(line.as_bytes());
-                    output.extend(b"\n");
+        if let Some(header) = &table.header {
+            if !header.is_empty() {
+                for group in &column_groups {
+                    let group_cells: Vec<_> = group.iter()
+                        .filter_map(|&idx| header.get(idx))
+                        .cloned()
+                        .collect();
+                    let group_widths: Vec<i32> = group.iter()
+                        .filter_map(|&idx| column_widths.get(idx).copied())
+                        .collect();
+                    let row_lines = process_row(&group_cells, &group_widths, truncate);
+                    for line in row_lines {
+                        output.extend(line.as_bytes());
+                        output.extend(b"\n");
+                    }
                 }
             }
         }
@@ -62,11 +70,13 @@ pub fn process_table(table: &Table, max_width: i32, truncate: bool) -> Result<Ve
     } else {
         // Procesar normalmente si cabe en max_width
         // Procesar header
-        if !table.header.is_empty() {
-            let header_lines = process_row(&table.header, &column_widths, truncate);
-            for line in header_lines {
-                output.extend(line.as_bytes());
-                output.extend(b"\n");
+        if let Some(header) = &table.header {
+            if !header.is_empty() {
+                let header_lines = process_row(header, &column_widths, truncate);
+                for line in header_lines {
+                    output.extend(line.as_bytes());
+                    output.extend(b"\n");
+                }
             }
         }
 
