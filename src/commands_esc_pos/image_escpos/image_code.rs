@@ -73,7 +73,7 @@ impl Image {
         // Comando para imprimir imagen raster: GS v 0 m xL xH yL yH d1...dk
         output.push(0x1D); // GS
         output.push(0x76); // v
-        output.push(0x00); // 0 (modo raster)
+        output.push(0x30); // 0 (ASCII '0', no 0x00)
         output.push(self.mode.value()); // m
         output.push(x_l);
         output.push(x_h);

@@ -4,7 +4,7 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 
 | Platform | Supported |
 | -------- | --------- |
-| Linux    | ?         |
+| Linux    | ✓         |
 | macOS    | ?         |
 | Windows  | x         |
 | Android  | x         |

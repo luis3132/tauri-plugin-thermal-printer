@@ -60,6 +60,10 @@ impl ProcessPrint {
             document.extend(PrinterControl::line_feed());
         }
 
+        if self.print_job_context.options.cut_paper {
+            document.extend(PrinterControl::feed_paper(8)); // Alimentar un poco antes de cortar
+        }
+
         if self.print_job_context.options.open_cash_drawer {
             document.extend(PrinterControl::open_cash_drawer_pin2(100));
         }

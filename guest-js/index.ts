@@ -162,11 +162,9 @@ export interface TestPrintRequest {
   test_rotate?: boolean
 }
 
-export async function print_thermal_printer(print_job_request: PrintJobRequest): Promise<boolean> {
+export async function print_thermal_printer(printJobRequest: PrintJobRequest): Promise<boolean> {
   return await invoke('plugin:thermal-printer|print_thermal_printer', {
-    payload: {
-      print_job_request,
-    },
+      printJobRequest: printJobRequest,
   })
 }
 
@@ -174,10 +172,8 @@ export async function list_thermal_printers(): Promise<PrinterInfo[]> {
   return await invoke<PrinterInfo[]>('plugin:thermal-printer|list_thermal_printers')
 }
 
-export async function test_thermal_printer(test_print_request: TestPrintRequest): Promise<boolean> {
+export async function test_thermal_printer(testPrintRequest: TestPrintRequest): Promise<boolean> {
   return await invoke('plugin:thermal-printer|test_thermal_printer', {
-    payload: {
-      print_job_request: test_print_request,
-    },
+      printTestRequest: testPrintRequest,
   })
-}
+} 

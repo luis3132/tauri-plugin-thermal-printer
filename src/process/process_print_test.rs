@@ -480,25 +480,25 @@ impl TestPrinter {
     // ==================== UTILIDADES ====================
 
     fn add_dashed_line(&self, document: &mut Vec<u8>) {
-        let line = "-".repeat(self.print_job_context.printer_info.paper_size.pixels_width() as usize);
+        let line = "-".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn add_double_line(&self, document: &mut Vec<u8>) {
-        let line = "=".repeat(self.print_job_context.printer_info.paper_size.pixels_width() as usize);
+        let line = "=".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn add_star_line(&self, document: &mut Vec<u8>) {
-        let line = "*".repeat(self.print_job_context.printer_info.paper_size.pixels_width() as usize);
+        let line = "*".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn create_receipt_line(&self, label: &str, value: &str) -> String {
-        let total_width = self.print_job_context.printer_info.paper_size.pixels_width() as usize;
+        let total_width = self.print_job_context.printer_info.paper_size.chars_per_line() as usize;
         let available = total_width.saturating_sub(label.len() + value.len());
         let dots = ".".repeat(available.max(1));
         format!("{}{}{}", label, dots, value)

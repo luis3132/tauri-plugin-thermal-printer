@@ -1,10 +1,10 @@
 /// Modo de impresión de imagen
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageMode {
-    Normal = 0,        // 8 dots single density
-    DoubleWidth = 1,   // 8 dots double width
-    DoubleHeight = 2,  // 8 dots double height
-    Quadruple = 3,     // 8 dots quadruple
+    Normal = 0,        // Normal (m=0, n=0)
+    DoubleWidth = 1,   // Double width (m=1, n=0)
+    DoubleHeight = 2,  // Double height (m=0, n=1)
+    Quadruple = 3,     // Quadruple (m=1, n=1)
 }
 
 impl ImageMode {
