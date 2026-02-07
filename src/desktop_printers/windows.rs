@@ -1,10 +1,19 @@
 use crate::PrinterInfo;
 use std::{io::Write, process::{Command, Stdio}};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+// Constante para CREATE_NO_WINDOW
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::Error>> {
-    let output = Command::new("powershell")
+    let mut command = Command::new("powershell");
+    command
         .args(&[
+            "-NoProfile",
+            "-WindowStyle", "Hidden",
             "-Command",
             r#"
             Get-Printer | ForEach-Object {
@@ -55,9 +64,12 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
                 }
             } | ConvertTo-Json
             "#
-        ])
-        .output()?;
-
+        ]);
+    
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    
+    let output = command.output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let printers: Vec<PrinterInfo> = serde_json::from_str(&stdout)?;
     
@@ -65,21 +77,27 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
 }
 
 pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()> {
-    let mut child = Command::new("powershell")
+    let mut command = Command::new("powershell");
+    command
         .args([
             "-NoProfile",
+            "-WindowStyle", "Hidden",
             "-Command",
             &format!("$input | Out-Printer -Name '{}'", printer_name)
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
-
+        .stderr(Stdio::piped());
+    
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    
+    let mut child = command.spawn()?;
+    
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(data)?;
     }
-
+    
     let output = child.wait_with_output()?;
     
     if output.status.success() {

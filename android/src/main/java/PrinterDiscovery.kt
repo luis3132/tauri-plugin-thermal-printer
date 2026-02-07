@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.InetAddress
@@ -23,6 +24,8 @@ data class ThermalPrinterInfo(
 )
 
 class PrinterDiscovery(private val context: Context) {
+
+    private val TAG = "PrinterDiscovery"
 
     private val usbManager: UsbManager by lazy {
         context.getSystemService(Context.USB_SERVICE) as UsbManager
@@ -41,14 +44,30 @@ class PrinterDiscovery(private val context: Context) {
      * Lista todas las impresoras disponibles
      */
     suspend fun discoverAllPrinters(): List<ThermalPrinterInfo> {
+        Log.d(TAG, "Starting printer discovery")
         val printers = mutableListOf<ThermalPrinterInfo>()
         
-        // Descubrir impresoras USB
-        printers.addAll(discoverUsbPrinters())
+        try {
+            // Descubrir impresoras USB
+            Log.d(TAG, "Discovering USB printers...")
+            val usbPrinters = discoverUsbPrinters()
+            Log.d(TAG, "Found ${usbPrinters.size} USB printers")
+            printers.addAll(usbPrinters)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error discovering USB printers", e)
+        }
         
-        // Descubrir impresoras Bluetooth
-        printers.addAll(discoverBluetoothPrinters())
+        try {
+            // Descubrir impresoras Bluetooth
+            Log.d(TAG, "Discovering Bluetooth printers...")
+            val btPrinters = discoverBluetoothPrinters()
+            Log.d(TAG, "Found ${btPrinters.size} Bluetooth printers")
+            printers.addAll(btPrinters)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error discovering Bluetooth printers", e)
+        }
         
+        Log.d(TAG, "Total printers found: ${printers.size}")
         return printers
     }
 
@@ -56,22 +75,29 @@ class PrinterDiscovery(private val context: Context) {
      * Descubre impresoras USB conectadas
      */
     private fun discoverUsbPrinters(): List<ThermalPrinterInfo> {
+        Log.d(TAG, "Starting USB printer discovery")
         val printers = mutableListOf<ThermalPrinterInfo>()
         
-        val deviceList: Map<String, UsbDevice> = usbManager.deviceList
-        
-        deviceList.values.forEach { device ->
-            // Clase 7 = Impresoras (USB Device Class)
-            if (device.deviceClass == 7 || hasUsbPrinterInterface(device)) {
-                printers.add(
-                    ThermalPrinterInfo(
+        try {
+            val deviceList: Map<String, UsbDevice> = usbManager.deviceList
+            Log.d(TAG, "Found ${deviceList.size} USB devices")
+            
+            deviceList.values.forEach { device ->
+                Log.d(TAG, "Checking USB device: VID=${device.vendorId}, PID=${device.productId}, Class=${device.deviceClass}")
+                // Clase 7 = Impresoras (USB Device Class)
+                if (device.deviceClass == 7 || hasUsbPrinterInterface(device)) {
+                    val printerInfo = ThermalPrinterInfo(
                         name = device.productName ?: device.manufacturerName ?: "USB Printer",
                         interfaceType = "USB",
                         identifier = "VID:${device.vendorId}/PID:${device.productId}",
                         status = if (usbManager.hasPermission(device)) "Connected" else "Permission Required"
                     )
-                )
+                    Log.d(TAG, "Added USB printer: ${printerInfo.name}")
+                    printers.add(printerInfo)
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in USB discovery", e)
         }
         
         return printers
@@ -95,11 +121,18 @@ class PrinterDiscovery(private val context: Context) {
      * Descubre impresoras Bluetooth emparejadas
      */
     private fun discoverBluetoothPrinters(): List<ThermalPrinterInfo> {
+        Log.d(TAG, "Starting Bluetooth printer discovery")
         val printers = mutableListOf<ThermalPrinterInfo>()
         
         val bluetoothAdapter = bluetoothManager?.adapter
         
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+        if (bluetoothAdapter == null) {
+            Log.w(TAG, "Bluetooth adapter is null")
+            return printers
+        }
+        
+        if (!bluetoothAdapter.isEnabled) {
+            Log.w(TAG, "Bluetooth is not enabled")
             return printers
         }
 
@@ -110,35 +143,45 @@ class PrinterDiscovery(private val context: Context) {
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                Log.w(TAG, "BLUETOOTH_CONNECT permission not granted")
                 return printers
             }
         }
 
-        // Obtener dispositivos emparejados
-        val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices
-        
-        pairedDevices.forEach { device ->
-            // Filtrar por clase de dispositivo (1664 = Impresoras)
-            val deviceClass = device.bluetoothClass?.deviceClass
+        try {
+            // Obtener dispositivos emparejados
+            val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices
+            Log.d(TAG, "Found ${pairedDevices.size} paired Bluetooth devices")
             
-            val isPrinter = deviceClass == 1664 || 
-                           device.name?.contains("printer", true) == true ||
-                           device.name?.contains("print", true) == true
-            
-            if (isPrinter) {
-                printers.add(
-                    ThermalPrinterInfo(
-                        name = device.name ?: "Bluetooth Printer",
-                        interfaceType = "Bluetooth",
-                        identifier = device.address,
-                        status = when (device.bondState) {
-                            BluetoothDevice.BOND_BONDED -> "Paired"
-                            BluetoothDevice.BOND_BONDING -> "Pairing"
-                            else -> "Not Paired"
-                        }
-                    )
-                )
+            pairedDevices.forEach { device ->
+                try {
+                    val deviceClass = device.bluetoothClass?.deviceClass
+                    Log.d(TAG, "Checking BT device: ${device.name}, class=$deviceClass, address=${device.address}")
+                    
+                    val isPrinter = deviceClass == 1664 || 
+                               device.name?.contains("printer", true) == true ||
+                               device.name?.contains("print", true) == true
+                    
+                    if (isPrinter) {
+                        val printerInfo = ThermalPrinterInfo(
+                            name = device.name ?: "Bluetooth Printer",
+                            interfaceType = "Bluetooth",
+                            identifier = device.address,
+                            status = when (device.bondState) {
+                                BluetoothDevice.BOND_BONDED -> "Paired"
+                                BluetoothDevice.BOND_BONDING -> "Pairing"
+                                else -> "Not Paired"
+                            }
+                        )
+                        Log.d(TAG, "Added Bluetooth printer: ${printerInfo.name}")
+                        printers.add(printerInfo)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing Bluetooth device", e)
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting bonded devices", e)
         }
         
         return printers
