@@ -16,7 +16,7 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
             "-WindowStyle", "Hidden",
             "-Command",
             r#"
-            Get-Printer | ForEach-Object {
+            $printers = @(Get-Printer | ForEach-Object {
                 $portName = $_.PortName
                 $port = Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue
                 
@@ -62,7 +62,12 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
                     identifier = $identifier
                     status = $status
                 }
-            } | ConvertTo-Json
+            })
+            if ($printers.Count -eq 0) {
+                Write-Output "[]"
+            } else {
+                $printers | ConvertTo-Json -AsArray
+            }
             "#
         ]);
     
@@ -70,8 +75,23 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
     command.creation_flags(CREATE_NO_WINDOW);
     
     let output = command.output()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let printers: Vec<PrinterInfo> = serde_json::from_str(&stdout)?;
+    
+    // Check if command failed
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("PowerShell command failed: {}", stderr).into());
+    }
+    
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    
+    // Handle empty output
+    if stdout.is_empty() {
+        return Ok(Vec::new());
+    }
+    
+    // Parse JSON
+    let printers: Vec<PrinterInfo> = serde_json::from_str(&stdout)
+        .map_err(|e| format!("Failed to parse JSON: {}. Output was: '{}'", e, stdout))?;
     
     Ok(printers)
 }
