@@ -105,9 +105,6 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
-    
     let mut child = command.spawn()?;
     
     if let Some(mut stdin) = child.stdin.take() {
