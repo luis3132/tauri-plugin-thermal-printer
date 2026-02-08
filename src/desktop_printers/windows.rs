@@ -1,97 +1,93 @@
+use serde::Deserialize;
+
 use crate::PrinterInfo;
 use std::{io::Write, process::{Command, Stdio}};
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
+// Struct intermedia para deserializar el JSON de PowerShell
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize)]
+struct PowerShellPrinter {
+    Name: String,
+    PortName: String,
+    PrinterStatus: u32,
+    InterfaceType: Option<String>,
+}
 
-// Constante para CREATE_NO_WINDOW
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+impl From<PowerShellPrinter> for PrinterInfo {
+    fn from(ps_printer: PowerShellPrinter) -> Self {
+        // Usar InterfaceType si está disponible, sino parsear del PortName
+        let interface_type = ps_printer.InterfaceType
+            .unwrap_or_else(|| get_interface_type(&ps_printer.PortName));
+        
+        // Mapear el status numérico a string
+        let status = match ps_printer.PrinterStatus {
+            0 => "Other",
+            1 => "Unknown",
+            2 => "Idle",
+            3 => "Printing",
+            4 => "Warmup",
+            5 => "Stopped",
+            6 => "Offline",
+            _ => "Unknown",
+        }.to_string();
+
+        PrinterInfo {
+            name: ps_printer.Name,
+            interface_type,
+            identifier: ps_printer.PortName,
+            status,
+        }
+    }
+}
+
+fn get_interface_type(port_name: &str) -> String {
+    if port_name.starts_with("IP_") || port_name.contains(':') || port_name.starts_with("WSD") {
+        "Network".to_string()
+    } else if port_name.starts_with("USB") {
+        "USB".to_string()
+    } else if port_name.starts_with("LPT") {
+        "Parallel".to_string()
+    } else if port_name.starts_with("COM") {
+        "Serial".to_string()
+    } else if port_name.eq_ignore_ascii_case("FILE:") {
+        "File".to_string()
+    } else {
+        "Other".to_string()
+    }
+}
 
 pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::Error>> {
     let mut command = Command::new("powershell");
-    command
-        .args(&[
-            "-NoProfile",
-            "-WindowStyle", "Hidden",
-            "-Command",
-            r#"
-            $printers = @(Get-Printer | ForEach-Object {
-                $portName = $_.PortName
-                $port = Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue
-                
-                $interfaceType = if ($portName -match '^USB') { 
-                    'USB' 
-                } elseif ($portName -match '^LPT') { 
-                    'PARALLEL' 
-                } elseif ($portName -match '^COM') { 
-                    'SERIAL' 
-                } elseif ($portName -match 'IP_') { 
-                    'NETWORK' 
-                } else { 
-                    'OTHER' 
-                }
-                
-                $identifier = if ($interfaceType -eq 'USB') {
-                    "usb://$($_.DriverName)/$($_.Name)"
-                } elseif ($interfaceType -eq 'NETWORK') {
-                    "network://$($port.PrinterHostAddress)"
-                } else {
-                    "$($interfaceType.ToLower())://$portName"
-                }
-                
-                $status = switch ($_.PrinterStatus) {
-                    0 { 'IDLE' }
-                    1 { 'PAUSED' }
-                    2 { 'ERROR' }
-                    3 { 'PENDING_DELETION' }
-                    4 { 'PAPER_JAM' }
-                    5 { 'PAPER_OUT' }
-                    6 { 'MANUAL_FEED' }
-                    7 { 'PAPER_PROBLEM' }
-                    8 { 'OFFLINE' }
-                    9 { 'IO_ACTIVE' }
-                    10 { 'BUSY' }
-                    11 { 'PRINTING' }
-                    default { 'UNKNOWN' }
-                }
-                
-                [PSCustomObject]@{
-                    name = $_.Name
-                    interface_type = $interfaceType
-                    identifier = $identifier
-                    status = $status
-                }
-            })
-            if ($printers.Count -eq 0) {
-                Write-Output "[]"
-            } else {
-                $printers | ConvertTo-Json -AsArray
-            }
-            "#
-        ]);
-    
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
-    
+    command.args(&[
+        "-NoProfile",
+        "-WindowStyle", 
+        "Hidden",
+        "-Command",
+        "Get-Printer | Select-Object Name, InterfaceType, PortName, PrinterStatus | ConvertTo-Json"
+    ]);
+
     let output = command.output()?;
-    
-    // Check if command failed
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("PowerShell command failed: {}", stderr).into());
+        return Err(format!("PowerShell error: {}", stderr).into());
     }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
     
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    // PowerShell devuelve un objeto sin [] si solo hay una impresora
+    let ps_printers: Vec<PowerShellPrinter> = if stdout.trim().starts_with('[') {
+        serde_json::from_str(&stdout)?
+    } else if stdout.trim().is_empty() {
+        Vec::new()
+    } else {
+        vec![serde_json::from_str(&stdout)?]
+    };
     
-    // Handle empty output
-    if stdout.is_empty() {
-        return Ok(Vec::new());
-    }
-    
-    // Parse JSON
-    let printers: Vec<PrinterInfo> = serde_json::from_str(&stdout)
-        .map_err(|e| format!("Failed to parse JSON: {}. Output was: '{}'", e, stdout))?;
+    let printers: Vec<PrinterInfo> = ps_printers
+        .into_iter()
+        .map(PrinterInfo::from)
+        .collect();
     
     Ok(printers)
 }
