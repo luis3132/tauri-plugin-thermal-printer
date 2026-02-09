@@ -17,12 +17,14 @@ mod models;
 mod desktop_printers;
 mod process;
 
-pub use error::{Error, Result};
+pub use commands::*;
 
 #[cfg(desktop)]
 use desktop::ThermalPrinter;
 #[cfg(mobile)]
 use mobile::ThermalPrinter;
+
+
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the thermal-printer APIs.
 pub trait ThermalPrinterExt<R: Runtime> {

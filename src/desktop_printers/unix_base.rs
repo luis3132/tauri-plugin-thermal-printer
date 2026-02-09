@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use std::process::Stdio;
 use std::io::Write;
 use crate::models::print_job_request::PrinterInfo;
+use crate::error::Result;
 
-pub fn get_printers_info() -> crate::Result<Vec<PrinterInfo>> {
+pub fn get_printers_info() -> Result<Vec<PrinterInfo>> {
     let output = Command::new("lpstat").arg("-t").output()?;
     let stdout = String::from_utf8(output.stdout).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
