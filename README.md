@@ -10,6 +10,8 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | Android  | ❌        |
 | iOS      | ❌        |
 
+For mobile applications, this plugin is currently work on this...
+
 ## Table of Contents
 
 - [How it Works](#how-it-works)
@@ -147,7 +149,7 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 
 ```toml
 [dependencies]
-tauri-plugin-thermal-printer = { git } # it's not published yet
+tauri-plugin-thermal-printer = {} # it's not published yet
 ```
 
 ### Bun / NPM / PNPM
@@ -178,6 +180,29 @@ Modify the file in /file/to/project/capabilities/default.json, and add:
     "thermal-printer:allow-print-thermal-printer",
     "thermal-printer:allow-test-thermal-printer"
   ]
+}
+```
+
+## Alternative Instalation
+
+```bash
+git clone https://github.com/luis3132/tauri-plugin-thermal-printer
+cd tauri-plugin-thermal-printer
+cargo build --release && bun i && bun run build
+```
+
+on src-tauri project file
+
+```toml
+[dependencies]
+tauri-plugin-thermal-printer = { path = "../../tauri-plugin-thermal-printer" }
+```
+
+on package.json
+
+```json
+"dependencies": {
+  "tauri-plugin-thermal-printer-api": "file:../tauri-plugin-thermal-printer"
 }
 ```
 
