@@ -26,5 +26,8 @@ printers = "2.2.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 printers = "2.2.1"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["winspool", "wingdi", "winbase", "handleapi"] }
+
 [build-dependencies]
 tauri-plugin = { version = "2.5.2", features = ["build"] }
