@@ -92,7 +92,7 @@ export interface Pdf417 {
   error_correction: number
 }
 
-export interface Imagen {
+export interface Image {
   data: string
   max_width: number
   align: string
@@ -123,7 +123,7 @@ export type PrintSections =
   | { Table: Table }
   | { DataMatrix: DataMatrixModel }
   | { Pdf417: Pdf417 }
-  | { Imagen: Imagen }
+  | { Image: Image }
   | { Logo: Logo }
   | { Line: Line }
 

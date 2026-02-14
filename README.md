@@ -10,7 +10,7 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | Android  | ❌        |
 | iOS      | ❌        |
 
-For mobile applications, this plugin is currently work on this...
+For mobile applications, this plugin is currently working on this...
 
 ## Table of Contents
 
@@ -37,7 +37,7 @@ For mobile applications, this plugin is currently work on this...
   - [Table](#table)
   - [DataMatrix](#datamatrix)
   - [Pdf417](#pdf417)
-  - [Imagen](#imagen)
+  - [Image](#Image)
   - [Logo](#logo)
   - [Line](#line)
   - [GlobalStyles](#globalstyles)
@@ -80,7 +80,7 @@ pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u
 
 #### 4. **OS Integration** (`src/desktop_printers/`)
 - **Linux/macOS**: Uses CUPS system (`lpstat`, `lp` commands)
-- **Windows**: Uses PowerShell to access system printers
+- **Windows**: Uses WinAPI (Windows API) to directly access system printers via functions such as EnumPrintersW for listing printers, OpenPrinterW for opening printer handles, and WritePrinter for sending raw data
 - **Android**: Basic structure present, not yet implemented
 
 ### Workflow
@@ -132,7 +132,7 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 
 - ✅ **Linux**: Fully functional (CUPS)
 - ✅ **macOS**: Fully functional (CUPS)
-- ✅ **Windows**: Fully functional (PowerShell)
+- ✅ **Windows**: Fully functional (WinAPI)
 - ❌ **Android**: Basic structure present, not implemented
 - ❌ **iOS**: Not implemented
 
@@ -158,7 +158,7 @@ tauri-plugin-thermal-printer = {} # it's not published yet
 # it's not published yet
 ```
 
-This library not only contain the conector to the backend. Also add the types for the print structure...
+This library not only contains the connector to the backend. Also adds the types for the print structure...
 
 ### lib.rs
 
@@ -183,7 +183,7 @@ Modify the file in /file/to/project/capabilities/default.json, and add:
 }
 ```
 
-## Alternative Instalation
+## Alternative Installation
 
 ```bash
 git clone https://github.com/luis3132/tauri-plugin-thermal-printer
@@ -207,8 +207,6 @@ on package.json
 ```
 
 ## Functions
-
-This plugin works, 
 
 ### List Printers
 
@@ -345,7 +343,7 @@ const response = await print_thermal_printer({
     {"Table": {"columns": 3, "column_widths": [10, 15, 10], "header": [{"text": "Col1"}, {"text": "Col2"}, {"text": "Col3"}], "body": [[{"text": "Data1"}, {"text": "Data2"}, {"text": "Data3"}]], "truncate": false}},
     {"DataMatrix": {"data": "DataMatrix data", "size": 5}},
     {"Pdf417": {"data": "PDF417 data", "columns": 2, "rows": 5, "width": 3, "height": 5, "error_correction": 2}},
-    {"Imagen": {"data": "{please introduce a base64 data image}", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
+    {"Image": {"data": "{please introduce a base64 data image}", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
     {"Logo": {"key_code": 1, "mode": "normal"}},
     {"Line": {"character": "="}}
   ]
@@ -680,12 +678,12 @@ Prints a PDF417 code.
 - `height` (number, required): Module height
 - `error_correction` (number, required): Error correction level (0-8)
 
-##### Imagen
+##### Image
 Prints an image.
 
 ```json
 {
-  "Imagen": {
+  "Image": {
     "data": "base64_encoded_image",
     "max_width": 384,
     "align": "center",

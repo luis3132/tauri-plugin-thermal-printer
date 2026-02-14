@@ -1,12 +1,12 @@
 use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
 use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Imagen, Logo, DataMatrixModel, Table};
+use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Image, Logo, DataMatrixModel, Table};
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::codes::barcode::{Barcode as EscPosBarcode, BarcodeType, BarcodeTextPosition};
 use crate::commands_esc_pos::codes::qr::{QR, QRModel, QRSize, QRErrorCorrection};
 use crate::commands_esc_pos::codes::pdf417::{PDF417, PDF417ErrorCorrection};
-use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode, Logo as EscPosLogo};
+use crate::commands_esc_pos::image_escpos::{Image as ImageCode, ImageAlignment, ImageMode, Logo as EscPosLogo};
 use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
 use crate::commands_esc_pos::text::table::process_table;
 
@@ -74,7 +74,7 @@ impl ProcessPrint {
             PrintSections::Barcode(barcode) => self.process_barcode(barcode),
             PrintSections::Qr(qr) => self.process_qr(qr),
             PrintSections::Pdf417(pdf417) => self.process_pdf417(pdf417),
-            PrintSections::Imagen(imagen) => self.process_imagen(imagen),
+            PrintSections::Image(imagen) => self.process_imagen(imagen),
             PrintSections::Logo(logo) => self.process_logo(logo),
             PrintSections::DataMatrix(data_matrix) => self.process_data_matrix(data_matrix),
             PrintSections::Table(table) => self.process_table_fn(table),
@@ -309,7 +309,7 @@ impl ProcessPrint {
     }
 
     /// Procesa imagen
-    fn process_imagen(&mut self, imagen: &Imagen) -> Result<Vec<u8>, String> {
+    fn process_imagen(&mut self, imagen: &Image) -> Result<Vec<u8>, String> {
         let alignment = match imagen.align.as_str() {
             "left" => ImageAlignment::Left,
             "center" => ImageAlignment::Center,
@@ -331,7 +331,7 @@ impl ProcessPrint {
             imagen.max_width as u32
         };
 
-        let image = Image::new(&imagen.data, max_width)
+        let image = ImageCode::new(&imagen.data, max_width)
             .map_err(|e| format!("Failed to create image: {}", e))?
             .set_alignment(alignment)
             .set_mode(mode)

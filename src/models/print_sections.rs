@@ -16,7 +16,7 @@ pub enum PrintSections {
     Table(Table),
     DataMatrix(DataMatrixModel),
     Pdf417(Pdf417),
-    Imagen(Imagen),
+    Image(Image),
     Logo(Logo),
     Line(Line),
 }
@@ -135,7 +135,7 @@ pub struct Pdf417 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Imagen {
+pub struct Image {
     pub data: String,
     pub max_width: i32,
     pub align: String,
