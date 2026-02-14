@@ -11,7 +11,6 @@ use winapi::um::winspool::{
 use winapi::um::winnt::LPWSTR;
 
 use crate::PrinterInfo;
-use std::process::Command;
 
 // Struct intermedia para deserializar el JSON de PowerShell
 #[allow(non_snake_case)]
@@ -78,7 +77,7 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
         // Primera llamada para obtener el tamaño necesario
         EnumPrintersW(
             PRINTER_ENUM_LOCAL,
-            ptr::null(),
+            ptr::null_mut(),
             2, // PRINTER_INFO_2
             ptr::null_mut(),
             0,
@@ -94,9 +93,9 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
 
         let result = EnumPrintersW(
             PRINTER_ENUM_LOCAL,
-            ptr::null(),
+            ptr::null_mut(),
             2,
-            buffer.as_mut_ptr() as LPVOID,
+            buffer.as_mut_ptr(),
             needed,
             &mut needed,
             &mut returned,
