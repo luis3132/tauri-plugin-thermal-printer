@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::PrinterInfo;
-use std::{io::Write, process::{Command, Stdio}};
+use std::{io::Write, process::{Command}};
 
 // Struct intermedia para deserializar el JSON de PowerShell
 #[allow(non_snake_case)]
@@ -93,33 +93,20 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
 }
 
 pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()> {
-    let mut command = Command::new("powershell");
-    command
-        .args([
-            "-NoProfile",
-            "-WindowStyle", "Hidden",
-            "-Command",
-            &format!("$input | Out-Printer -Name '{}'", printer_name)
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    use std::fs::OpenOptions;
     
-    let mut child = command.spawn()?;
+    // En Windows, podemos escribir directamente al dispositivo de la impresora
+    // usando su nombre UNC: \\.\<printer_name>
+    let printer_path = format!(r"\\.\{}", printer_name);
     
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(data)?;
-    }
+    // Abrir el dispositivo de la impresora en modo escritura binaria
+    let mut printer = OpenOptions::new()
+        .write(true)
+        .create(false)
+        .open(&printer_path)?;
     
-    let output = child.wait_with_output()?;
+    // Escribir los bytes crudos directamente
+    printer.write_all(data)?;
     
-    if output.status.success() {
-        Ok(())
-    } else {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Print failed: {}", error_msg),
-        ))
-    }
+    Ok(())
 }
