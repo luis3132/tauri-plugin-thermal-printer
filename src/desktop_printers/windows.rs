@@ -6,8 +6,9 @@ use winapi::shared::minwindef::{DWORD, LPVOID};
 use winapi::um::winspool::DOC_INFO_1W;
 use winapi::um::winspool::{
     ClosePrinter, EndDocPrinter, EndPagePrinter, OpenPrinterW, StartDocPrinterW, StartPagePrinter,
-    WritePrinter,
+    WritePrinter, EnumPrintersW, PRINTER_INFO_2W, PRINTER_ENUM_LOCAL,
 };
+use winapi::um::winnt::LPWSTR;
 
 use crate::PrinterInfo;
 use std::process::Command;
@@ -68,44 +69,106 @@ fn get_interface_type(port_name: &str) -> String {
 }
 
 pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::Error>> {
-    let mut command = Command::new("powershell");
-    command.args(&[
-        "-NoProfile",
-        "-WindowStyle",
-        "Hidden",
-        "-Command",
-        "Get-Printer | Select-Object Name, InterfaceType, PortName, PrinterStatus | ConvertTo-Json",
-    ]);
+    let mut printers = Vec::new();
 
-    println!("Querying installed printers via PowerShell");
-    println!("Running command: powershell {:?}", command);
+    unsafe {
+        let mut needed: DWORD = 0;
+        let mut returned: DWORD = 0;
 
-    let output = command.output()?;
+        // Primera llamada para obtener el tamaño necesario
+        EnumPrintersW(
+            PRINTER_ENUM_LOCAL,
+            ptr::null(),
+            2, // PRINTER_INFO_2
+            ptr::null_mut(),
+            0,
+            &mut needed,
+            &mut returned,
+        );
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("PowerShell returned non-zero exit: {}", stderr);
-        return Err(format!("PowerShell error: {}", stderr).into());
+        if needed == 0 {
+            return Ok(printers);
+        }
+
+        let mut buffer: Vec<u8> = vec![0; needed as usize];
+
+        let result = EnumPrintersW(
+            PRINTER_ENUM_LOCAL,
+            ptr::null(),
+            2,
+            buffer.as_mut_ptr() as LPVOID,
+            needed,
+            &mut needed,
+            &mut returned,
+        );
+
+        if result == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+
+        let printer_info_array = buffer.as_ptr() as *const PRINTER_INFO_2W;
+
+        for i in 0..returned {
+            let printer_info = *printer_info_array.offset(i as isize);
+
+            let name = wide_to_string(printer_info.pPrinterName);
+            let port_name = wide_to_string(printer_info.pPortName);
+
+            let interface_type = get_interface_type(&port_name);
+
+            let status = match printer_info.Status {
+                0 => "Idle",
+                winapi::um::winspool::PRINTER_STATUS_BUSY => "Printing",
+                winapi::um::winspool::PRINTER_STATUS_DOOR_OPEN => "Offline",
+                winapi::um::winspool::PRINTER_STATUS_ERROR => "Error",
+                winapi::um::winspool::PRINTER_STATUS_INITIALIZING => "Initializing",
+                winapi::um::winspool::PRINTER_STATUS_IO_ACTIVE => "IO Active",
+                winapi::um::winspool::PRINTER_STATUS_MANUAL_FEED => "Manual Feed",
+                winapi::um::winspool::PRINTER_STATUS_NO_TONER => "No Toner",
+                winapi::um::winspool::PRINTER_STATUS_NOT_AVAILABLE => "Not Available",
+                winapi::um::winspool::PRINTER_STATUS_OFFLINE => "Offline",
+                winapi::um::winspool::PRINTER_STATUS_OUT_OF_MEMORY => "Out of Memory",
+                winapi::um::winspool::PRINTER_STATUS_OUTPUT_BIN_FULL => "Output Bin Full",
+                winapi::um::winspool::PRINTER_STATUS_PAGE_PUNT => "Page Punt",
+                winapi::um::winspool::PRINTER_STATUS_PAPER_JAM => "Paper Jam",
+                winapi::um::winspool::PRINTER_STATUS_PAPER_OUT => "Paper Out",
+                winapi::um::winspool::PRINTER_STATUS_PAPER_PROBLEM => "Paper Problem",
+                winapi::um::winspool::PRINTER_STATUS_PAUSED => "Paused",
+                winapi::um::winspool::PRINTER_STATUS_PENDING_DELETION => "Pending Deletion",
+                winapi::um::winspool::PRINTER_STATUS_PRINTING => "Printing",
+                winapi::um::winspool::PRINTER_STATUS_PROCESSING => "Processing",
+                winapi::um::winspool::PRINTER_STATUS_SERVER_UNKNOWN => "Server Unknown",
+                winapi::um::winspool::PRINTER_STATUS_TONER_LOW => "Toner Low",
+                winapi::um::winspool::PRINTER_STATUS_USER_INTERVENTION => "User Intervention",
+                winapi::um::winspool::PRINTER_STATUS_WAITING => "Waiting",
+                winapi::um::winspool::PRINTER_STATUS_WARMING_UP => "Warming Up",
+                _ => "Unknown",
+            }.to_string();
+
+            printers.push(PrinterInfo {
+                name,
+                interface_type,
+                identifier: port_name,
+                status,
+            });
+        }
     }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    println!("PowerShell stdout: {}", stdout.trim());
-
-    // PowerShell devuelve un objeto sin [] si solo hay una impresora
-    let ps_printers: Vec<PowerShellPrinter> = if stdout.trim().starts_with('[') {
-        serde_json::from_str(&stdout)?
-    } else if stdout.trim().is_empty() {
-        Vec::new()
-    } else {
-        vec![serde_json::from_str(&stdout)?]
-    };
-
-    let printers: Vec<PrinterInfo> = ps_printers.into_iter().map(PrinterInfo::from).collect();
 
     println!("Found {} printers", printers.len());
     println!("Printers info: {:#?}", printers);
 
     Ok(printers)
+}
+
+fn wide_to_string(wide: LPWSTR) -> String {
+    if wide.is_null() {
+        return String::new();
+    }
+    unsafe {
+        let len = (0..).take_while(|&i| *wide.offset(i) != 0).count();
+        let slice = std::slice::from_raw_parts(wide, len);
+        String::from_utf16_lossy(slice)
+    }
 }
 
 pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()> {

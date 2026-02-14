@@ -1,2 +1,5 @@
-pub mod unix_base;
+#[cfg(target_os = "windows")]
 pub mod windows;
+
+#[cfg(not(target_os = "windows"))]
+pub mod unix_base;
