@@ -11,13 +11,13 @@ export interface PrinterOptions {
 export interface GlobalStyles {
   bold?: boolean
   underline?: boolean
-  align?: string
+  align?: 'left' | 'center' | 'right' | string
   italic?: boolean
   invert?: boolean
-  font?: string
+  font?: 'A' | 'B' | 'C' | 'D' | 'E' | string
   rotate?: boolean
   upside_down?: boolean
-  size?: string
+  size?: 'normal' | 'height' | 'width' | 'double' | string
 }
 
 export interface Title {
@@ -36,12 +36,12 @@ export interface Text {
 }
 
 export interface Feed {
-  feed_type: string
+  feed_type: 'lines' | 'pixels' | string
   value: number
 }
 
 export interface Cut {
-  mode: string
+  mode: 'full' | 'partial' | string
   feed: number
 }
 
@@ -66,16 +66,17 @@ export interface Table {
 export interface Qr {
   data: string
   size: number
-  error_correction: string
+  error_correction: 'L' | 'M' | 'Q' | 'H' | string
   model: number
+  align?: 'left' | 'center' | 'right' | string
 }
 
 export interface Barcode {
   data: string
-  barcode_type: string
+  barcode_type: 'UPCA' | 'UPCE' | 'EAN13' | 'EAN8' | 'CODE39' | 'ITF' | 'CODABAR' | 'CODE93' | 'CODE128' | string
   width: number
   height: number
-  text_position: string
+  text_position: 'none' | 'above' | 'below' | 'both' | string
 }
 
 export interface DataMatrixModel {
@@ -95,14 +96,14 @@ export interface Pdf417 {
 export interface Image {
   data: string
   max_width: number
-  align: string
+  align: 'left' | 'center' | 'right' | string
   dithering: boolean
-  size: string
+  size: 'normal' | 'double_width' | 'double_height' | 'double' | string
 }
 
 export interface Logo {
   key_code: number
-  mode: string
+  mode: 'normal' | 'double_width' | 'double_height' | 'double' | string
 }
 
 export interface Line {
@@ -152,7 +153,7 @@ export interface TestPrintRequest {
   include_barcode_types?: boolean
   include_qr?: boolean
   include_image?: boolean
-  image_base64?: string
+  image_base64?: string | null
   include_beep?: boolean
   test_cash_drawer?: boolean
   cut_paper?: boolean
@@ -164,7 +165,7 @@ export interface TestPrintRequest {
 
 export async function print_thermal_printer(printJobRequest: PrintJobRequest): Promise<boolean> {
   return await invoke('plugin:thermal-printer|print_thermal_printer', {
-      printJobRequest: printJobRequest,
+    printJobRequest: printJobRequest,
   })
 }
 
@@ -174,6 +175,6 @@ export async function list_thermal_printers(): Promise<PrinterInfo[]> {
 
 export async function test_thermal_printer(testPrintRequest: TestPrintRequest): Promise<boolean> {
   return await invoke('plugin:thermal-printer|test_thermal_printer', {
-      printTestRequest: testPrintRequest,
+    printTestRequest: testPrintRequest,
   })
-} 
+}

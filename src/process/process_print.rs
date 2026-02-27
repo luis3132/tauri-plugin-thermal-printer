@@ -1,14 +1,21 @@
-use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
-use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{PrintSections, Title, Subtitle, Text, Feed, Cut, Beep, Drawer, GlobalStyles, Barcode, Qr, Pdf417, Image, Logo, DataMatrixModel, Table};
-use crate::commands_esc_pos::text::text_type::TextType;
-use crate::commands_esc_pos::control::printer_control::PrinterControl;
-use crate::commands_esc_pos::codes::barcode::{Barcode as EscPosBarcode, BarcodeType, BarcodeTextPosition};
-use crate::commands_esc_pos::codes::qr::{QR, QRModel, QRSize, QRErrorCorrection};
-use crate::commands_esc_pos::codes::pdf417::{PDF417, PDF417ErrorCorrection};
-use crate::commands_esc_pos::image_escpos::{Image as ImageCode, ImageAlignment, ImageMode, Logo as EscPosLogo};
+use crate::commands_esc_pos::codes::barcode::{
+    Barcode as EscPosBarcode, BarcodeTextPosition, BarcodeType,
+};
 use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
+use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
+use crate::commands_esc_pos::codes::pdf417::{PDF417ErrorCorrection, PDF417};
+use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
+use crate::commands_esc_pos::control::printer_control::PrinterControl;
+use crate::commands_esc_pos::image_escpos::{
+    Image as ImageCode, ImageAlignment, ImageMode, Logo as EscPosLogo,
+};
 use crate::commands_esc_pos::text::table::process_table;
+use crate::commands_esc_pos::text::text_type::TextType;
+use crate::models::print_job_request::PrintJobRequest;
+use crate::models::print_sections::{
+    Barcode, Beep, Cut, DataMatrixModel, Drawer, Feed, GlobalStyles, Image, Logo, Pdf417,
+    PrintSections, Qr, Subtitle, Table, Text, Title,
+};
 
 pub struct ProcessPrint {
     current_styles: GlobalStyles,
@@ -51,7 +58,8 @@ impl ProcessPrint {
         }
 
         if self.print_job_context.options.cut_paper {
-            document.extend(PrinterControl::feed_paper(8)); // Alimentar un poco antes de cortar
+            document.extend(PrinterControl::feed_paper(5));
+            document.extend(PrinterControl::cut_paper_with_feed(65, 0));
         }
 
         if self.print_job_context.options.open_cash_drawer {
@@ -85,72 +93,88 @@ impl ProcessPrint {
     /// Procesa encabezado (centrado, doble tamaño)
     fn process_title(&mut self, title: &Title) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
-        
+
         // Usar estilos proporcionados o estilos globales actuales
-        let base_styles = title.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
-        
-        // Forzar tamaño doble
+        let base_styles = title
+            .styles
+            .as_ref()
+            .cloned()
+            .unwrap_or(self.current_styles.clone());
+
+        // Forzar tamaño doble y centrado (si lo quieres obligar, pero al menos el size)
         let mut effective_styles = base_styles;
-        effective_styles.size = Some("Double".to_string());
-        
+        effective_styles.size = Some("double".to_string());
+        effective_styles.align = Some("center".to_string());
+
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
-        
+
         // Texto
         let clean_text = Self::remove_accents(&title.text);
         output.extend_from_slice(clean_text.as_bytes());
-        
+        output.extend_from_slice(b"\n");
+
         // Resetear a estilos globales
         let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
         output.extend_from_slice(&diff_off);
-        
+
         Ok(output)
     }
 
     /// Procesa subtítulo (tamaño normal, negrita)
     fn process_subtitle(&mut self, subtitle: &Subtitle) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
-        
+
         // Usar estilos proporcionados o estilos globales actuales
-        let base_styles = subtitle.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
-        
-        // Forzar estilos: tamaño normal y negrita
+        let base_styles = subtitle
+            .styles
+            .as_ref()
+            .cloned()
+            .unwrap_or(self.current_styles.clone());
+
+        // Forzar estilos: tamaño height y negrita
         let mut effective_styles = base_styles;
-        effective_styles.size = Some("normal".to_string());
+        effective_styles.size = Some("height".to_string());
         effective_styles.bold = Some(true);
-        
+
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
-        
+
         // Texto
         let clean_text = Self::remove_accents(&subtitle.text);
         output.extend_from_slice(clean_text.as_bytes());
-        
+        output.extend_from_slice(b"\n");
+
         // Resetear a estilos globales
         let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
         output.extend_from_slice(&diff_off);
-        
+
         Ok(output)
     }
 
     /// Procesa texto (estilos libres)
     fn process_text(&mut self, text: &Text) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
-        
+
         // Usar estilos como están
-        let effective_styles = text.styles.as_ref().cloned().unwrap_or(self.current_styles.clone());
-        
+        let effective_styles = text
+            .styles
+            .as_ref()
+            .cloned()
+            .unwrap_or(self.current_styles.clone());
+
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
-        
+
         // Texto
         let clean_text = Self::remove_accents(&text.text);
         output.extend_from_slice(clean_text.as_bytes());
-        
+        output.extend_from_slice(b"\n");
+
         // Resetear a estilos globales
         let diff_off = self.get_styles_diff(&effective_styles, &self.current_styles);
         output.extend_from_slice(&diff_off);
-        
+
         Ok(output)
     }
 
@@ -166,17 +190,16 @@ impl ProcessPrint {
 
     /// Procesa corte de papel
     fn process_cut(&mut self, cut: &Cut) -> Result<Vec<u8>, String> {
-
         if !self.print_job_context.options.cut_paper {
             return Ok(PrinterControl::line_feed_multiple(8));
         }
 
         let mode_u8 = match cut.mode.as_str() {
-            "full" => 0,
-            "partial" => 1,
+            "full" => 66,
+            "partial" => 65,
             "partial_alt" => 65,
             "partial_alt2" => 66,
-            _ => 1, // default partial
+            _ => 65, // default partial
         };
         Ok(PrinterControl::cut_paper_with_feed(mode_u8, cut.feed))
     }
@@ -236,7 +259,9 @@ impl ProcessPrint {
             .set_width(barcode.width)
             .set_text_position(text_position);
 
-        Ok(esc_pos_barcode.get_command())
+        let mut data = esc_pos_barcode.get_command();
+        data.extend_from_slice(b"\n");
+        Ok(data)
     }
 
     /// Procesa código QR
@@ -280,7 +305,21 @@ impl ProcessPrint {
             .set_size(size)
             .set_error_correction(error_correction);
 
-        Ok(esc_pos_qr.get_command())
+        let mut temp_styles = self.current_styles.clone();
+        if let Some(ref align) = qr.align {
+            temp_styles.align = Some(align.clone());
+        }
+
+        let diff_on = self.get_styles_diff(&self.current_styles, &temp_styles);
+        let diff_off = self.get_styles_diff(&temp_styles, &self.current_styles);
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&diff_on);
+        data.extend_from_slice(&esc_pos_qr.get_command());
+        data.extend_from_slice(b"\n");
+        data.extend_from_slice(&diff_off);
+
+        Ok(data)
     }
 
     /// Procesa código PDF417
@@ -305,7 +344,9 @@ impl ProcessPrint {
             .set_width(pdf417.width)
             .set_error_correction(error_correction);
 
-        Ok(esc_pos_pdf417.get_command())
+        let mut data = esc_pos_pdf417.get_command();
+        data.extend_from_slice(b"\n");
+        Ok(data)
     }
 
     /// Procesa imagen
@@ -325,7 +366,9 @@ impl ProcessPrint {
             _ => ImageMode::Normal,
         };
 
-        let max_width = if imagen.max_width > self.print_job_context.paper_size.pixels_width() || imagen.max_width <= 0 {
+        let max_width = if imagen.max_width > self.print_job_context.paper_size.pixels_width()
+            || imagen.max_width <= 0
+        {
             self.print_job_context.paper_size.pixels_width() as u32
         } else {
             imagen.max_width as u32
@@ -337,7 +380,9 @@ impl ProcessPrint {
             .set_mode(mode)
             .set_use_dithering(imagen.dithering);
 
-        image.get_command()
+        let mut cmd = image.get_command()?;
+        cmd.extend_from_slice(b"\n");
+        Ok(cmd)
     }
 
     /// Procesa logo
@@ -352,7 +397,9 @@ impl ProcessPrint {
 
         let esc_pos_logo = EscPosLogo::new(logo.key_code).set_mode(mode);
 
-        Ok(esc_pos_logo.get_print_command())
+        let mut data = esc_pos_logo.get_print_command();
+        data.extend_from_slice(b"\n");
+        Ok(data)
     }
 
     /// Procesa código DataMatrix
@@ -378,51 +425,73 @@ impl ProcessPrint {
         };
         let esc_pos_data_matrix = DataMatrix::new(data_matrix.data.clone()).set_size(size);
 
-        Ok(esc_pos_data_matrix.get_command())
+        let mut data = esc_pos_data_matrix.get_command();
+        data.extend_from_slice(b"\n");
+        Ok(data)
     }
 
     fn process_table_fn(&mut self, table: &Table) -> Result<Vec<u8>, String> {
-        process_table(table, self.print_job_context.paper_size.pixels_width(), table.truncate)
+        process_table(
+            table,
+            self.print_job_context.paper_size.pixels_width(),
+            table.truncate,
+        )
     }
 
     /// Procesa línea horizontal
-    fn process_line(&mut self, line: &crate::models::print_sections::Line) -> Result<Vec<u8>, String> {
+    fn process_line(
+        &mut self,
+        line: &crate::models::print_sections::Line,
+    ) -> Result<Vec<u8>, String> {
         let mut output = Vec::new();
-        
+
         // Calcular el número de caracteres según el ancho del papel y el tamaño de fuente
         let char_count = self.calculate_line_width();
-        
+
         // Obtener el primer carácter (o usar '-' por defecto)
         let character = line.character.chars().next().unwrap_or('-');
-        
+
         // Crear la línea repitiendo el carácter
         let line_text = character.to_string().repeat(char_count);
-        
+
         // Usar los estilos globales actuales
         output.extend_from_slice(line_text.as_bytes());
-        
+        output.extend_from_slice(b"\n");
+
         Ok(output)
     }
 
     /// Calcula el ancho de línea en caracteres según el papel y fuente actual
     fn calculate_line_width(&self) -> usize {
         // Ajustar según el tamaño de fuente actual
-        let current_size = self.current_styles.size.as_deref().unwrap_or("normal");
-        let width_multiplier = match current_size {
-            "width" | "double" => 0.5,  // DoubleWidth or DoubleSize reduce characters per line
+        let current_size = self
+            .current_styles
+            .size
+            .as_deref()
+            .unwrap_or("normal")
+            .to_lowercase();
+        let width_multiplier = match current_size.as_str() {
+            "width" | "double" => 0.5, // DoubleWidth or DoubleSize reduce characters per line
             _ => 1.0,
         };
 
         // Ajustar según el tipo de fuente
-        let current_font = self.current_styles.font.as_deref().unwrap_or("A");
-        let font_multiplier = match current_font {
-            "B" => 1.3,  // Font B es más pequeña, más caracteres
-            "C" => 1.5,  // Font C es aún más pequeña
-            _ => 1.0,    // Font A
+        let current_font = self
+            .current_styles
+            .font
+            .as_deref()
+            .unwrap_or("a")
+            .to_lowercase();
+        let font_multiplier = match current_font.as_str() {
+            "b" => 1.3, // Font B es más pequeña, más caracteres
+            "c" => 1.5, // Font C es aún más pequeña
+            _ => 1.0,   // Font A
         };
 
-        let calculated_width = (self.print_job_context.paper_size.chars_per_line() as f32 * width_multiplier * font_multiplier) as usize;
-        
+        let calculated_width = (self.print_job_context.paper_size.chars_per_line() as f32
+            * width_multiplier
+            * font_multiplier) as usize;
+
         // Asegurar al menos 10 caracteres
         calculated_width.max(10)
     }
@@ -438,7 +507,8 @@ impl ProcessPrint {
 
         // Helper functions to get effective values with defaults
         let get_bool = |opt: &Option<bool>| opt.unwrap_or(false);
-        let get_string = |opt: &Option<String>| opt.as_deref().unwrap_or("").to_string();
+        let get_string =
+            |opt: &Option<String>, default: &str| opt.as_deref().unwrap_or(default).to_lowercase();
 
         let old_bold = get_bool(&old.bold);
         let new_bold = get_bool(&new.bold);
@@ -500,20 +570,20 @@ impl ProcessPrint {
             }
         }
 
-        let old_font = get_string(&old.font);
-        let new_font = get_string(&new.font);
+        let old_font = get_string(&old.font, "a");
+        let new_font = get_string(&new.font, "a");
         if old_font != new_font {
-            if new_font == "A" {
+            if new_font == "a" {
                 output.extend_from_slice(TextType::FontA.command());
-            } else if new_font == "B" {
+            } else if new_font == "b" {
                 output.extend_from_slice(TextType::FontB.command());
-            } else if new_font == "C" {
+            } else if new_font == "c" {
                 output.extend_from_slice(TextType::FontC.command());
             }
         }
 
-        let old_size = get_string(&old.size);
-        let new_size = get_string(&new.size);
+        let old_size = get_string(&old.size, "normal");
+        let new_size = get_string(&new.size, "normal");
         if old_size != new_size {
             if new_size == "normal" {
                 output.extend_from_slice(TextType::Normal.command());
@@ -526,8 +596,8 @@ impl ProcessPrint {
             }
         }
 
-        let old_align = get_string(&old.align);
-        let new_align = get_string(&new.align);
+        let old_align = get_string(&old.align, "left");
+        let new_align = get_string(&new.align, "left");
         if old_align != new_align {
             if new_align == "left" {
                 output.extend_from_slice(TextType::AlignLeft.command());

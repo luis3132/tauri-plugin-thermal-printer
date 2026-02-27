@@ -407,7 +407,7 @@ Or simply:
 - `styles` (GlobalStyles, optional): Applied styles
 
 ##### Subtitle
-Prints a subtitle with forced bold and normal size.
+Prints a subtitle with forced bold and increased height.
 
 ```json
 {
@@ -422,7 +422,7 @@ Prints a subtitle with forced bold and normal size.
       "font": "A",
       "rotate": false,
       "upside_down": false,
-      "size": "normal"
+      "size": "height"
     }
   }
 }
@@ -561,7 +561,8 @@ Prints a QR code.
     "data": "https://example.com",
     "size": 5,
     "error_correction": "M",
-    "model": 2
+    "model": 2,
+    "align": "center"
   }
 }
 ```
@@ -570,6 +571,7 @@ Prints a QR code.
 - `size` (number, required): Module size (1-16)
 - `error_correction` (string, required): Error correction level ("L", "M", "Q", "H")
 - `model` (number, required): QR model (1 or 2)
+- `align` (string, optional): Alignment ("left", "center", "right")
 
 ##### Barcode
 Prints a barcode.
@@ -727,24 +729,6 @@ Prints a separator line.
 
 - `character` (string, required): Character for the line (e.g., "=", "-", "_")
 
-##### GlobalStyles
-Changes the current global styles that will be applied to subsequent text sections. This allows you to set default styles without specifying them for each text element.
-
-```json
-{
-  "GlobalStyles": {
-    "bold": false,
-    "underline": false,
-    "align": "left",
-    "italic": false,
-    "invert": false,
-    "font": "A",
-    "rotate": false,
-    "upside_down": false,
-    "size": "normal"
-  }
-}
-```
 
 ##### GlobalStyles
 Changes the current global styles that will be applied to subsequent text sections. This allows you to set default styles without specifying them for each text element.
@@ -773,7 +757,7 @@ Changes the current global styles that will be applied to subsequent text sectio
 - `font` (string, optional): Font ("A", "B", "C") (default: `"A"`)
 - `rotate` (boolean, optional): Text rotated 90 degrees (default: `false`)
 - `upside_down` (boolean, optional): Upside down text (default: `false`)
-- `size` (string, optional): Size ("normal", "double_height", "double_width", "double_size") (default: `"normal"`)
+- `size` (string, optional): Size ("normal", "height", "width", "double") (default: `"normal"`)
 
 ---
 

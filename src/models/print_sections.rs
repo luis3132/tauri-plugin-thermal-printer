@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +106,7 @@ pub struct Qr {
     pub size: u8,
     pub error_correction: String,
     pub model: u8,
+    pub align: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
