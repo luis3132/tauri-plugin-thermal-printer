@@ -29,11 +29,6 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct ThermalPrinter<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> ThermalPrinter<R> {
-    pub fn ping(&self, payload: PingRequest) -> Result<PingResponse> {
-        self.0
-            .run_mobile_plugin("ping", payload)
-            .map_err(Into::into)
-    }
     pub fn list_thermal_printers(&self) -> Result<Vec<PrinterInfo>> {
         if OS_NAME == "android" {
             println!("Listing thermal printers");
