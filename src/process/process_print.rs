@@ -53,8 +53,6 @@ impl ProcessPrint {
         for section in &print_job.sections {
             let section_data = self.process_print_section(section)?;
             document.extend(section_data);
-            // Agregar salto de línea después de cada sección
-            document.extend(PrinterControl::line_feed());
         }
 
         if self.print_job_context.options.cut_paper {
