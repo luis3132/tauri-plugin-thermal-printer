@@ -5,75 +5,105 @@ use std::io::Write;
 use crate::models::print_job_request::PrinterInfo;
 use crate::error::Result;
 
+fn lpstat(args: &[&str]) -> std::io::Result<String> {
+    let output = Command::new("lpstat")
+        .args(args)
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .output()?;
+
+    String::from_utf8(output.stdout)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+}
+
 pub fn get_printers_info() -> Result<Vec<PrinterInfo>> {
-    let output = Command::new("lpstat").arg("-t").output()?;
-    let stdout = String::from_utf8(output.stdout).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    let statuses = get_printer_statuses()?;
+    let devices = get_printer_devices()?;
 
-    let mut printers = Vec::new();
-    let mut devices = HashMap::new();
-
-    for line in stdout.lines() {
-        if line.starts_with("device for ") {
-            // device for POS-80: parallel:/dev/usb/lp0
-            let parts: Vec<&str> = line.split(": ").collect();
-            if parts.len() == 2 {
-                let name = parts[0].strip_prefix("device for ").unwrap();
-                let device = parts[1];
-                let device_parts: Vec<&str> = device.split(':').collect();
-                if device_parts.len() == 2 {
-                    let interface_type = device_parts[0].to_string();
-                    let identifier = device_parts[1].to_string();
-                    devices.insert(name.to_string(), (interface_type, identifier));
-                }
-            }
-        } else if line.starts_with("printer ") && line.contains(" is ") {
-            // printer POS-80 is idle.  enabled since Tue 09 Dec 2025 07:33:02 -05
-            let parts: Vec<&str> = line.split(" is ").collect();
-            if parts.len() == 2 {
-                let name = parts[0].strip_prefix("printer ").unwrap();
-                let status_part = parts[1];
-                let status = if status_part.contains("idle") {
-                    "idle"
-                } else if status_part.contains("printing") {
-                    "printing"
-                } else {
-                    "unknown"
-                };
-                if let Some((interface_type, identifier)) = devices.get(name) {
-                    printers.push(PrinterInfo {
-                        name: name.to_string(),
-                        interface_type: interface_type.clone(),
-                        identifier: identifier.clone(),
-                        status: status.to_string(),
-                    });
-                }
-            }
-        }
-    }
+    let printers = statuses
+        .into_iter()
+        .filter_map(|(name, status)| {
+            devices.get(&name).map(|(interface_type, identifier)| PrinterInfo {
+                name,
+                interface_type: interface_type.clone(),
+                identifier: identifier.clone(),
+                status,
+            })
+        })
+        .collect();
 
     Ok(printers)
 }
 
+fn get_printer_statuses() -> Result<HashMap<String, String>> {
+    let stdout = lpstat(&["-p"])?;
+
+    let statuses = stdout
+        .lines()
+        .filter(|line| line.starts_with("printer "))
+        .filter_map(parse_printer_status)
+        .collect();
+
+    Ok(statuses)
+}
+
+fn get_printer_devices() -> Result<HashMap<String, (String, String)>> {
+    let stdout = lpstat(&["-v"])?;
+
+    let devices = stdout
+        .lines()
+        .filter(|line| line.starts_with("device for "))
+        .filter_map(parse_device_line)
+        .collect();
+
+    Ok(devices)
+}
+
+fn parse_printer_status(line: &str) -> Option<(String, String)> {
+    // "printer <name> is idle/printing/disabled ..."
+    let rest = line.strip_prefix("printer ")?;
+    let (name, status_part) = rest.split_once(" is ")?;
+
+    let status = match () {
+        _ if status_part.contains("idle") => "idle",
+        _ if status_part.contains("printing") => "printing",
+        _ if status_part.contains("disabled") => "disabled",
+        _ => "unknown",
+    };
+
+    Some((name.trim().to_string(), status.to_string()))
+}
+
+fn parse_device_line(line: &str) -> Option<(String, (String, String))> {
+    // "device for <name>: <interface>:<identifier>"
+    let rest = line.strip_prefix("device for ")?;
+    let (name, device) = rest.split_once(": ")?;
+    let (interface_type, identifier) = device.split_once(':')?;
+
+    Some((
+        name.trim().to_string(),
+        (interface_type.trim().to_string(), identifier.trim().to_string()),
+    ))
+}
+
 pub fn print_raw_data(printer_name: &str, data: &[u8]) -> std::io::Result<()> {
     let mut child = Command::new("lp")
-        .arg("-d")
-        .arg(printer_name)
-        .arg("-o")
-        .arg("raw")
+        .args(["-d", printer_name, "-o", "raw"])
         .stdin(Stdio::piped())
         .spawn()?;
 
-    let mut stdin = child.stdin.take().expect("Failed to open stdin");
-    stdin.write_all(data)?;
-    drop(stdin);
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "Failed to open stdin"))?
+        .write_all(data)?;
 
     let status = child.wait()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(std::io::Error::new(
+
+    status.success().then_some(()).ok_or_else(|| {
+        std::io::Error::new(
             std::io::ErrorKind::Other,
             format!("lp command failed with status: {}", status),
-        ))
-    }
+        )
+    })
 }
