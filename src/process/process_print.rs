@@ -257,8 +257,19 @@ impl ProcessPrint {
             .set_width(barcode.width)
             .set_text_position(text_position);
 
-        let mut data = esc_pos_barcode.get_command();
+        let mut temp_styles = self.current_styles.clone();
+        if let Some(ref align) = barcode.align {
+            temp_styles.align = Some(align.clone());
+        }
+
+        let diff_on = self.get_styles_diff(&self.current_styles, &temp_styles);
+        let diff_off = self.get_styles_diff(&temp_styles, &self.current_styles);
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&diff_on);
+        data.extend_from_slice(&esc_pos_barcode.get_command());
         data.extend_from_slice(b"\n");
+        data.extend_from_slice(&diff_off);
         Ok(data)
     }
 

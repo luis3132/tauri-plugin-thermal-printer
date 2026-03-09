@@ -116,6 +116,7 @@ pub struct Barcode {
     pub width: u8,
     pub height: u8,
     pub text_position: String,
+    pub align: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

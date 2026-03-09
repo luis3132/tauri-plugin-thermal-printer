@@ -582,7 +582,8 @@ Prints a barcode.
     "barcode_type": "CODE128",
     "width": 2,
     "height": 100,
-    "text_position": "below"
+    "text_position": "below",
+    "align": "center"
   }
 }
 ```
@@ -592,6 +593,7 @@ Prints a barcode.
 - `width` (number, required): Module width
 - `height` (number, required): Height in dots
 - `text_position` (string, required): Text position ("not_printed", "above", "below", "both")
+- `align` (string, optional): Horizontal alignment ("left", "center", "right") (default: current global alignment)
 
 ##### Table
 Prints a table.

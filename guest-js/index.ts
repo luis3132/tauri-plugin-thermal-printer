@@ -77,6 +77,7 @@ export interface Barcode {
   width: number
   height: number
   text_position: 'none' | 'above' | 'below' | 'both' | string
+  align?: 'left' | 'center' | 'right' | string
 }
 
 export interface DataMatrixModel {
