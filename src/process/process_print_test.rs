@@ -1,12 +1,12 @@
-use crate::TestPrintRequest;
-use crate::commands_esc_pos::codes::barcode::{Barcode, BarcodeType, BarcodeTextPosition};
-use crate::commands_esc_pos::codes::qr::{QRModel, QRSize, QRErrorCorrection, QR};
+use crate::commands_esc_pos::codes::barcode::{Barcode, BarcodeTextPosition, BarcodeType};
+use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
-use crate::commands_esc_pos::text::text_type::TextType;
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode};
 use crate::commands_esc_pos::text::table;
-use crate::models::print_sections::{Table, Text};
+use crate::commands_esc_pos::text::text_type::TextType;
 use crate::models::print_job_request::PrintJobRequest;
+use crate::models::print_sections::{Table, Text};
+use crate::TestPrintRequest;
 
 pub struct TestPrinter {
     print_job_context: TestPrintRequest,
@@ -44,7 +44,10 @@ impl TestPrinter {
     }
 
     /// Genera el documento de prueba completo
-    pub fn generate_test_document(&mut self, request: &TestPrintRequest) -> Result<Vec<u8>, String> {
+    pub fn generate_test_document(
+        &mut self,
+        request: &TestPrintRequest,
+    ) -> Result<Vec<u8>, String> {
         let mut document: Vec<u8> = Vec::new();
 
         self.print_job_context = request.clone();
@@ -52,7 +55,6 @@ impl TestPrinter {
         // Inicializar impresora
         document.extend(PrinterControl::initialize());
         document.extend(PrinterControl::line_feed());
-        
 
         // ==================== ENCABEZADO ====================
         if request.include_text {
@@ -286,30 +288,73 @@ impl TestPrinter {
             truncate: true,
             column_widths: Some(vec![25, 8, 15]),
             header: Some(vec![
-                Text { text: "Producto".to_string(), styles: None },
-                Text { text: "Cant".to_string(), styles: None },
-                Text { text: "Precio".to_string(), styles: None },
+                Text {
+                    text: "Producto".to_string(),
+                    styles: None,
+                },
+                Text {
+                    text: "Cant".to_string(),
+                    styles: None,
+                },
+                Text {
+                    text: "Precio".to_string(),
+                    styles: None,
+                },
             ]),
             body: vec![
                 vec![
-                    Text { text: "Producto A".to_string(), styles: None },
-                    Text { text: "2".to_string(), styles: None },
-                    Text { text: "$10.50".to_string(), styles: None },
+                    Text {
+                        text: "Producto A".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "2".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "$10.50".to_string(),
+                        styles: None,
+                    },
                 ],
                 vec![
-                    Text { text: "Producto B".to_string(), styles: None },
-                    Text { text: "1".to_string(), styles: None },
-                    Text { text: "$25.00".to_string(), styles: None },
+                    Text {
+                        text: "Producto B".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "1".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "$25.00".to_string(),
+                        styles: None,
+                    },
                 ],
                 vec![
-                    Text { text: "Producto C Largo".to_string(), styles: None },
-                    Text { text: "5".to_string(), styles: None },
-                    Text { text: "$8.99".to_string(), styles: None },
+                    Text {
+                        text: "Producto C Largo".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "5".to_string(),
+                        styles: None,
+                    },
+                    Text {
+                        text: "$8.99".to_string(),
+                        styles: None,
+                    },
                 ],
             ],
         };
 
-        document.extend(table::process_table(&table, self.print_job_context.printer_info.paper_size.pixels_width() as i32, table.truncate)?);
+        document.extend(table::process_table(
+            &table,
+            self.print_job_context
+                .printer_info
+                .paper_size
+                .pixels_width() as i32,
+            table.truncate,
+        )?);
         self.add_dashed_line(document);
 
         // Totales
@@ -340,10 +385,30 @@ impl TestPrinter {
         document.extend(TextType::BoldOff.command());
         document.extend(b"\n");
 
+        document.extend(TextType::AlignLeft.command());
+        document.extend(b"EAN13 Left:\n");
+        let barcode = Barcode::new(BarcodeType::Ean13, "123456789012".to_string())
+            .set_height(60)
+            .set_width(2)
+            .set_text_position(BarcodeTextPosition::Below);
+        document.extend(barcode.get_command());
+
+        document.extend(b"\n");
+
         document.extend(TextType::AlignCenter.command());
-        document.extend(b"CODE128:\n");
+        document.extend(b"CODE128 Center:\n");
 
         let barcode = Barcode::new(BarcodeType::Code128, "123456789012".to_string())
+            .set_height(60)
+            .set_width(2)
+            .set_text_position(BarcodeTextPosition::Below);
+        document.extend(barcode.get_command());
+
+        document.extend(b"\n");
+
+        document.extend(TextType::AlignRight.command());
+        document.extend(b"UPCA Right:\n");
+        let barcode = Barcode::new(BarcodeType::UpcA, "123456789012".to_string())
             .set_height(60)
             .set_width(2)
             .set_text_position(BarcodeTextPosition::Below);
@@ -413,7 +478,7 @@ impl TestPrinter {
                     .set_alignment(ImageAlignment::Center)
                     .set_mode(ImageMode::Normal)
                     .set_use_dithering(true);
-                
+
                 match img.get_command() {
                     Ok(cmd) => {
                         document.extend(cmd);
@@ -480,25 +545,44 @@ impl TestPrinter {
     // ==================== UTILIDADES ====================
 
     fn add_dashed_line(&self, document: &mut Vec<u8>) {
-        let line = "-".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
+        let line = "-".repeat(
+            self.print_job_context
+                .printer_info
+                .paper_size
+                .chars_per_line() as usize,
+        );
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn add_double_line(&self, document: &mut Vec<u8>) {
-        let line = "=".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
+        let line = "=".repeat(
+            self.print_job_context
+                .printer_info
+                .paper_size
+                .chars_per_line() as usize,
+        );
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn add_star_line(&self, document: &mut Vec<u8>) {
-        let line = "*".repeat(self.print_job_context.printer_info.paper_size.chars_per_line() as usize);
+        let line = "*".repeat(
+            self.print_job_context
+                .printer_info
+                .paper_size
+                .chars_per_line() as usize,
+        );
         document.extend(line.as_bytes());
         document.extend(b"\n");
     }
 
     fn create_receipt_line(&self, label: &str, value: &str) -> String {
-        let total_width = self.print_job_context.printer_info.paper_size.chars_per_line() as usize;
+        let total_width = self
+            .print_job_context
+            .printer_info
+            .paper_size
+            .chars_per_line() as usize;
         let available = total_width.saturating_sub(label.len() + value.len());
         let dots = ".".repeat(available.max(1));
         format!("{}{}{}", label, dots, value)
