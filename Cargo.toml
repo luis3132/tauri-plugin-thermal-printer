@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-thermal-printer"
-version = "1.0.1"
+version = "1.0.2"
 authors = [ "luis3132" ]
 description = "Plugin for Tauri to send esc/pos commands to thermal_printer"
 edition = "2021"
