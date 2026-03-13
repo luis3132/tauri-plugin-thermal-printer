@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
-    "tauri-plugin-thermal-printer-api": "file:../../"
+    "tauri-plugin-thermal-printer": "file:../../"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",

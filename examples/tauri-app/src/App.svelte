@@ -1,6 +1,6 @@
 <script>
   import Greet from './lib/Greet.svelte'
-  import { ping } from 'tauri-plugin-thermal-printer-api'
+  import { ping } from 'tauri-plugin-thermal-printer'
 
 	let response = $state('')
 

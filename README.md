@@ -201,7 +201,7 @@ on package.json
 
 ```json
 "dependencies": {
-  "tauri-plugin-thermal-printer-api": "file:../tauri-plugin-thermal-printer"
+  "tauri-plugin-thermal-printer": "file:../tauri-plugin-thermal-printer"
 }
 ```
 
@@ -213,7 +213,7 @@ Get all printers available in the system. It just lists the configured printers.
 
 #### Request:
 ```typescript
-import { list_thermal_printers } from "tauri-plugin-thermal-printer-api";
+import { list_thermal_printers } from "tauri-plugin-thermal-printer";
 
 const response = await list_thermal_printers();
 ```
@@ -250,7 +250,7 @@ Send a print test to a specific printer to verify functionality.
 
 #### Request:
 ```typescript
-import { test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer-api";
+import { test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer";
 
 const response = await test_thermal_printer({
   "printer_info": {
@@ -319,7 +319,7 @@ Print a personalized document with the specified sections.
 
 #### Request:
 ```typescript
-import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer-api";
+import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
 
 const response = await print_thermal_printer({
   "printer": "TM-T20II",
@@ -771,7 +771,7 @@ This section contains practical examples for different use cases. Each example d
 ### 🛒 Long Receipt (Supermarket - 80mm)
 
 ```typescript
-import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer-api";
+import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
 
 const receipt: PrintJobRequest = {
   "printer": "TM-T20II",
