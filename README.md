@@ -45,6 +45,7 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [CodePage](#codepage)
   - [Style constants](#style-constants)
   - [Section builder helpers](#section-builder-helpers)
+  - [Helper example (all builders)](#helper-example-all-builders)
 - [Examples](#examples)
 
 ## How it Works
@@ -957,12 +958,13 @@ const qr = {
 
 ### Section builder helpers
 
-Short helper functions to build the most common section types without the enum wrapper boilerplate:
+Short helper functions to build section types without enum wrapper boilerplate:
 
 ```typescript
 import {
   title, subtitle, text, line, feed, cut, globalStyles,
-  TEXT_ALIGN, TEXT_SIZE, CODE_PAGE,
+  beep, drawer, table, qr, barcode, dataMatrix, pdf417, image, logo,
+  TEXT_ALIGN, TEXT_SIZE, BARCODE_TYPE, QR_ERROR_CORRECTION,
 } from "tauri-plugin-thermal-printer";
 
 const sections = [
@@ -970,6 +972,12 @@ const sections = [
   subtitle("Receipt #001"),
   text("Thank you for your purchase!", { align: TEXT_ALIGN.CENTER }),
   line("="),
+  qr("https://example.com/order/123", {
+    size: 6,
+    error_correction: QR_ERROR_CORRECTION.M,
+  }),
+  barcode("123456789012", BARCODE_TYPE.EAN13),
+  beep(),
   text("Total: $50.00", { bold: true, size: TEXT_SIZE.DOUBLE }),
   line("-"),
   feed(3),
@@ -986,6 +994,116 @@ const sections = [
 | `feed(value, type?)` | Creates a `{ Feed: ... }` section (default `"lines"`) |
 | `cut(mode?, feedLines?)` | Creates a `{ Cut: ... }` section (default `"partial"`, 4 lines) |
 | `globalStyles(styles)` | Creates a `{ GlobalStyles: ... }` section |
+| `beep(times?, duration?)` | Creates a `{ Beep: ... }` section (default `1`, `3`) |
+| `drawer(pin?, pulse_time?)` | Creates a `{ Drawer: ... }` section (default `2`, `120`) |
+| `table(columns, body, options?)` | Creates a `{ Table: ... }` section (`truncate` default `true`) |
+| `qr(data, options?)` | Creates a `{ Qr: ... }` section (`size=6`, `error_correction="M"`, `model=2`) |
+| `barcode(data, barcode_type?, options?)` | Creates a `{ Barcode: ... }` section (`CODE128`, `width=3`, `height=80`, `text_position="below"`) |
+| `dataMatrix(data, size?)` | Creates a `{ DataMatrix: ... }` section (default `size=6`) |
+| `pdf417(data, options?)` | Creates a `{ Pdf417: ... }` section (`columns=0`, `rows=0`, `width=2`, `height=3`, `error_correction=2`) |
+| `image(data, options?)` | Creates a `{ Image: ... }` section (`max_width=0`, `align="center"`, `dithering=true`, `size="normal"`) |
+| `logo(key_code, mode?)` | Creates a `{ Logo: ... }` section (default `mode="normal"`) |
+
+### Helper example (all builders)
+
+```typescript
+import {
+  print_thermal_printer,
+  type PrintJobRequest,
+  title,
+  subtitle,
+  text,
+  line,
+  feed,
+  cut,
+  globalStyles,
+  beep,
+  drawer,
+  table,
+  qr,
+  barcode,
+  dataMatrix,
+  pdf417,
+  image,
+  logo,
+  TEXT_ALIGN,
+  TEXT_SIZE,
+  BARCODE_TYPE,
+  BARCODE_TEXT_POSITION,
+  QR_ERROR_CORRECTION,
+  IMAGE_MODE,
+  CODE_PAGE,
+} from "tauri-plugin-thermal-printer";
+
+const job: PrintJobRequest = {
+  printer: "TM-T20II",
+  paper_size: "Mm80",
+  options: {
+    cut_paper: true,
+    beep: false,
+    open_cash_drawer: false,
+    code_page: CODE_PAGE.WINDOWS_LATIN,
+  },
+  sections: [
+    globalStyles({ align: TEXT_ALIGN.LEFT }),
+    title("DEMO STORE"),
+    subtitle("Receipt #A-1001"),
+    text("Date: 2026-03-30 14:22"),
+    line("="),
+    table(
+      3,
+      [
+        [text("1"), text("Americano"), text("$2.50", { align: TEXT_ALIGN.RIGHT })],
+        [text("2"), text("Croissant"), text("$7.00", { align: TEXT_ALIGN.RIGHT })],
+      ],
+      {
+        column_widths: [6, 28, 14],
+        header: [
+          text("QTY", { bold: true }),
+          text("ITEM", { bold: true }),
+          text("TOTAL", { bold: true, align: TEXT_ALIGN.RIGHT }),
+        ],
+        truncate: true,
+      },
+    ),
+    line("-"),
+    text("Grand total: $9.50", { bold: true, size: TEXT_SIZE.DOUBLE, align: TEXT_ALIGN.RIGHT }),
+    qr("https://example.com/r/A-1001", {
+      size: 6,
+      error_correction: QR_ERROR_CORRECTION.M,
+      model: 2,
+      align: TEXT_ALIGN.CENTER,
+    }),
+    barcode("123456789012", BARCODE_TYPE.EAN13, {
+      width: 3,
+      height: 70,
+      text_position: BARCODE_TEXT_POSITION.BELOW,
+      align: TEXT_ALIGN.CENTER,
+    }),
+    dataMatrix("A-1001", 6),
+    pdf417("A-1001|TOTAL=9.50|PAID", {
+      columns: 0,
+      rows: 0,
+      width: 2,
+      height: 3,
+      error_correction: 2,
+    }),
+    image("<BASE64_IMAGE>", {
+      max_width: 0,
+      align: TEXT_ALIGN.CENTER,
+      dithering: true,
+      size: IMAGE_MODE.NORMAL,
+    }),
+    logo(1, IMAGE_MODE.NORMAL),
+    drawer(2, 120),
+    beep(1, 3),
+    feed(3),
+    cut(),
+  ],
+};
+
+await print_thermal_printer(job);
+```
 
 ---
 
@@ -1447,6 +1565,8 @@ const paymentReceipt: PrintJobRequest = {
   ]
 };
 ```
+
+
 
 ---
 
