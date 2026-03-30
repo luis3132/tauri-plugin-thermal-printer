@@ -17,4 +17,13 @@ impl BarcodeType {
     pub fn value(&self) -> u8 {
         *self as u8
     }
+
+    /// Returns true if this barcode type only accepts numeric digits as data
+    pub fn requires_numeric_data(&self) -> bool {
+        matches!(
+            self,
+            BarcodeType::UpcA | BarcodeType::UpcE | BarcodeType::Ean13
+                | BarcodeType::Ean8 | BarcodeType::Itf
+        )
+    }
 }

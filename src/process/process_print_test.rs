@@ -20,7 +20,7 @@ impl TestPrinter {
                     printer: "".to_string(),
                     sections: vec![],
                     options: Default::default(),
-                    paper_size: crate::PaperSize::Mm80,
+                    paper_size: crate::PaperSize::DEFAULT,
                 },
                 include_text: true,
                 include_text_styles: true,
@@ -531,8 +531,7 @@ impl TestPrinter {
 
         self.add_star_line(document);
 
-        // Fecha y hora (simulada, ya que Rust no tiene acceso directo a SimpleDateFormat)
-        let datetime = chrono::Local::now().format("%d/%m/%Y %H:%M:%S").to_string();
+        let datetime = format_utc_datetime();
         document.extend(datetime.as_bytes());
         document.extend(b"\n");
 
@@ -585,4 +584,40 @@ impl TestPrinter {
         let dots = ".".repeat(available.max(1));
         format!("{}{}{}", label, dots, value)
     }
+}
+
+/// Formats the current UTC time as "dd/mm/yyyy HH:MM:SS" using only std::time.
+/// Works on all platforms supported by Rust (Linux, macOS, Windows, Android, iOS).
+fn format_utc_datetime() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let total_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let time_of_day = total_secs % 86400;
+    let days = total_secs / 86400;
+    let hour = (time_of_day / 3600) as u32;
+    let min = ((time_of_day % 3600) / 60) as u32;
+    let sec = (time_of_day % 60) as u32;
+
+    let (year, month, day) = days_to_ymd(days);
+    format!("{:02}/{:02}/{} {:02}:{:02}:{:02}", day, month, year, hour, min, sec)
+}
+
+/// Converts days since Unix epoch (1970-01-01) to (year, month, day) via the
+/// Proleptic Gregorian calendar algorithm by Howard Hinnant (civil_from_days).
+fn days_to_ymd(days: u64) -> (u32, u32, u32) {
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z % 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = (yoe + era * 400) as u32;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
 }

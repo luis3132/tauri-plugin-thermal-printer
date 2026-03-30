@@ -1,6 +1,40 @@
 import { invoke } from '@tauri-apps/api/core'
 
-export type PaperSize = 'Mm58' | 'Mm80'
+export type PaperSize =
+  | 'Mm40'   // 40mm — ~21 chars/line
+  | 'Mm44'   // 44mm — ~24 chars/line
+  | 'Mm58'   // 58mm — ~32 chars/line (small format)
+  | 'Mm72'   // 72mm — ~42 chars/line
+  | 'Mm80'   // 80mm — ~48 chars/line (standard large format)
+  | 'Mm104'  // 104mm — ~62 chars/line (wide format)
+
+export const PAPER_SIZE_CHARS_PER_LINE: Record<PaperSize, number> = {
+  Mm40: 21,
+  Mm44: 24,
+  Mm58: 32,
+  Mm72: 42,
+  Mm80: 48,
+  Mm104: 62,
+}
+
+export const PAPER_SIZE_PIXELS_WIDTH: Record<PaperSize, number> = {
+  Mm40: 256,
+  Mm44: 288,
+  Mm58: 384,
+  Mm72: 512,
+  Mm80: 576,
+  Mm104: 752,
+}
+
+export const DEFAULT_PAPER_SIZE: PaperSize = 'Mm80'
+
+export function getPaperSizeCharsPerLine(paperSize: PaperSize): number {
+  return PAPER_SIZE_CHARS_PER_LINE[paperSize]
+}
+
+export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
+  return PAPER_SIZE_PIXELS_WIDTH[paperSize]
+}
 
 export interface PrinterOptions {
   cut_paper: boolean
@@ -11,13 +45,13 @@ export interface PrinterOptions {
 export interface GlobalStyles {
   bold?: boolean
   underline?: boolean
-  align?: 'left' | 'center' | 'right' | string
+  align?: 'left' | 'center' | 'right'
   italic?: boolean
   invert?: boolean
-  font?: 'A' | 'B' | 'C' | 'D' | 'E' | string
+  font?: 'A' | 'B' | 'C'
   rotate?: boolean
   upside_down?: boolean
-  size?: 'normal' | 'height' | 'width' | 'double' | string
+  size?: 'normal' | 'height' | 'width' | 'double'
 }
 
 export interface Title {
@@ -36,12 +70,12 @@ export interface Text {
 }
 
 export interface Feed {
-  feed_type: 'lines' | 'pixels' | string
+  feed_type: 'lines' | 'dots' | 'line_feed'
   value: number
 }
 
 export interface Cut {
-  mode: 'full' | 'partial' | string
+  mode: 'full' | 'partial' | 'partial_alt' | 'partial_alt2'
   feed: number
 }
 
@@ -51,7 +85,7 @@ export interface Beep {
 }
 
 export interface Drawer {
-  pin: number
+  pin: 2 | 5
   pulse_time: number
 }
 
@@ -66,18 +100,18 @@ export interface Table {
 export interface Qr {
   data: string
   size: number
-  error_correction: 'L' | 'M' | 'Q' | 'H' | string
-  model: number
-  align?: 'left' | 'center' | 'right' | string
+  error_correction: 'L' | 'M' | 'Q' | 'H'
+  model: 1 | 2
+  align?: 'left' | 'center' | 'right'
 }
 
 export interface Barcode {
   data: string
-  barcode_type: 'UPCA' | 'UPCE' | 'EAN13' | 'EAN8' | 'CODE39' | 'ITF' | 'CODABAR' | 'CODE93' | 'CODE128' | string
+  barcode_type: 'UPC-A' | 'UPC-E' | 'EAN13' | 'EAN8' | 'CODE39' | 'ITF' | 'CODABAR' | 'CODE93' | 'CODE128'
   width: number
   height: number
-  text_position: 'none' | 'above' | 'below' | 'both' | string
-  align?: 'left' | 'center' | 'right' | string
+  text_position: 'none' | 'above' | 'below' | 'both'
+  align?: 'left' | 'center' | 'right'
 }
 
 export interface DataMatrixModel {
@@ -97,14 +131,14 @@ export interface Pdf417 {
 export interface Image {
   data: string
   max_width: number
-  align: 'left' | 'center' | 'right' | string
+  align: 'left' | 'center' | 'right'
   dithering: boolean
-  size: 'normal' | 'double_width' | 'double_height' | 'double' | string
+  size: 'normal' | 'double_width' | 'double_height' | 'quadruple'
 }
 
 export interface Logo {
   key_code: number
-  mode: 'normal' | 'double_width' | 'double_height' | 'double' | string
+  mode: 'normal' | 'double_width' | 'double_height' | 'quadruple'
 }
 
 export interface Line {
@@ -164,18 +198,30 @@ export interface TestPrintRequest {
   test_rotate?: boolean
 }
 
-export async function print_thermal_printer(printJobRequest: PrintJobRequest): Promise<boolean> {
-  return await invoke('plugin:thermal-printer|print_thermal_printer', {
-    printJobRequest: printJobRequest,
+/**
+ * Sends a print job to the specified thermal printer.
+ * @throws {string} Error message from the printer or document generation if the job fails.
+ */
+export async function print_thermal_printer(printJobRequest: PrintJobRequest): Promise<void> {
+  await invoke('plugin:thermal-printer|print_thermal_printer', {
+    printJobRequest,
   })
 }
 
+/**
+ * Returns the list of available thermal printers on the current system.
+ * @throws {string} Error message if printer enumeration fails.
+ */
 export async function list_thermal_printers(): Promise<PrinterInfo[]> {
   return await invoke<PrinterInfo[]>('plugin:thermal-printer|list_thermal_printers')
 }
 
-export async function test_thermal_printer(testPrintRequest: TestPrintRequest): Promise<boolean> {
-  return await invoke('plugin:thermal-printer|test_thermal_printer', {
+/**
+ * Sends a test print job to verify the printer is working correctly.
+ * @throws {string} Error message from the printer or document generation if the job fails.
+ */
+export async function test_thermal_printer(testPrintRequest: TestPrintRequest): Promise<void> {
+  await invoke('plugin:thermal-printer|test_thermal_printer', {
     printTestRequest: testPrintRequest,
   })
 }

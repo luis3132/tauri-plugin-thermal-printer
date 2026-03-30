@@ -1,6 +1,6 @@
 {
   "name": "tauri-plugin-thermal-printer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "luis3132",
   "description": "Plugin for Tauri to send esc/pos commands to thermal_printer",
   "type": "module",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^12.3.0",
-    "rollup": "^4.57.1",
+    "rollup": "^4.60.1",
     "typescript": "^5.9.3",
     "tslib": "^2.8.1"
   }

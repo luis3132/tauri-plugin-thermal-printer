@@ -12,4 +12,14 @@ impl QRErrorCorrection {
     pub fn value(&self) -> u8 {
         *self as u8
     }
+
+    /// Maximum numeric character capacity for this error correction level (QR spec)
+    pub fn max_data_len(&self) -> usize {
+        match self {
+            QRErrorCorrection::L => 7089,
+            QRErrorCorrection::M => 4296,
+            QRErrorCorrection::Q => 2953,
+            QRErrorCorrection::H => 1817,
+        }
+    }
 }

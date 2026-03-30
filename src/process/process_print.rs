@@ -5,7 +5,9 @@ use crate::commands_esc_pos::codes::data_matrix::data_matrix::DataMatrix;
 use crate::commands_esc_pos::codes::data_matrix::data_matrix_size::DataMatrixSize;
 use crate::commands_esc_pos::codes::pdf417::{PDF417ErrorCorrection, PDF417};
 use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
-use crate::commands_esc_pos::control::printer_control::PrinterControl;
+use crate::commands_esc_pos::control::printer_control::{
+    PrinterControl, CUT_MODE_FULL, CUT_MODE_PARTIAL, POST_PRINT_FEED_LINES,
+};
 use crate::commands_esc_pos::image_escpos::{
     Image as ImageCode, ImageAlignment, ImageMode, Logo as EscPosLogo,
 };
@@ -30,7 +32,7 @@ impl ProcessPrint {
                 printer: String::new(),
                 sections: Vec::new(),
                 options: Default::default(),
-                paper_size: crate::PaperSize::Mm80, // Default to 80mm
+                paper_size: crate::PaperSize::DEFAULT,
             },
         }
     }
@@ -56,9 +58,9 @@ impl ProcessPrint {
         }
 
         if self.print_job_context.options.cut_paper {
-            document.extend(PrinterControl::cut_paper_with_feed(65, 0));
+            document.extend(PrinterControl::cut_paper_with_feed(CUT_MODE_PARTIAL, 0));
         } else {
-            document.extend(PrinterControl::feed_paper(5));
+            document.extend(PrinterControl::feed_paper(POST_PRINT_FEED_LINES));
         }
 
         if self.print_job_context.options.open_cash_drawer {
@@ -97,8 +99,8 @@ impl ProcessPrint {
         let base_styles = title
             .styles
             .as_ref()
-            .cloned()
-            .unwrap_or(self.current_styles.clone());
+            .unwrap_or(&self.current_styles)
+            .clone();
 
         // Forzar tamaño doble y centrado (si lo quieres obligar, pero al menos el size)
         let mut effective_styles = base_styles;
@@ -128,8 +130,8 @@ impl ProcessPrint {
         let base_styles = subtitle
             .styles
             .as_ref()
-            .cloned()
-            .unwrap_or(self.current_styles.clone());
+            .unwrap_or(&self.current_styles)
+            .clone();
 
         // Forzar estilos: tamaño height y negrita
         let mut effective_styles = base_styles;
@@ -159,8 +161,8 @@ impl ProcessPrint {
         let effective_styles = text
             .styles
             .as_ref()
-            .cloned()
-            .unwrap_or(self.current_styles.clone());
+            .unwrap_or(&self.current_styles)
+            .clone();
 
         let diff_on = self.get_styles_diff(&self.current_styles, &effective_styles);
         output.extend_from_slice(&diff_on);
@@ -194,11 +196,8 @@ impl ProcessPrint {
         }
 
         let mode_u8 = match cut.mode.as_str() {
-            "full" => 66,
-            "partial" => 65,
-            "partial_alt" => 65,
-            "partial_alt2" => 66,
-            _ => 65, // default partial
+            "full" | "partial_alt2" => CUT_MODE_FULL,
+            _ => CUT_MODE_PARTIAL,
         };
         Ok(PrinterControl::cut_paper_with_feed(mode_u8, cut.feed))
     }
@@ -232,6 +231,13 @@ impl ProcessPrint {
 
     /// Procesa código de barras
     fn process_barcode(&mut self, barcode: &Barcode) -> Result<Vec<u8>, String> {
+        if barcode.data.is_empty() {
+            return Err("Barcode data cannot be empty".to_string());
+        }
+        if barcode.height == 0 {
+            return Err("Barcode height must be greater than 0".to_string());
+        }
+
         let barcode_type = match barcode.barcode_type.as_str() {
             "UPC-A" => BarcodeType::UpcA,
             "UPC-E" => BarcodeType::UpcE,
@@ -242,8 +248,17 @@ impl ProcessPrint {
             "CODABAR" => BarcodeType::Codabar,
             "CODE93" => BarcodeType::Code93,
             "CODE128" => BarcodeType::Code128,
-            _ => BarcodeType::Code128, // default
+            _ => BarcodeType::Code128,
         };
+
+        if barcode_type.requires_numeric_data()
+            && !barcode.data.chars().all(|c| c.is_ascii_digit())
+        {
+            return Err(format!(
+                "Barcode type '{}' only accepts numeric digits",
+                barcode.barcode_type
+            ));
+        }
 
         let text_position = match barcode.text_position.as_str() {
             "none" => BarcodeTextPosition::NotPrinted,
@@ -258,24 +273,44 @@ impl ProcessPrint {
             .set_width(barcode.width)
             .set_text_position(text_position);
 
-        let mut temp_styles = self.current_styles.clone();
-        if let Some(ref align) = barcode.align {
-            temp_styles.align = Some(align.clone());
-        }
-
-        let diff_on = self.get_styles_diff(&self.current_styles, &temp_styles);
-        let diff_off = self.get_styles_diff(&temp_styles, &self.current_styles);
-
         let mut data = Vec::new();
-        data.extend_from_slice(&diff_on);
-        data.extend_from_slice(&esc_pos_barcode.get_command());
-        data.extend_from_slice(b"\n");
-        data.extend_from_slice(&diff_off);
+        if let Some(ref align) = barcode.align {
+            let mut temp_styles = self.current_styles.clone();
+            temp_styles.align = Some(align.clone());
+            data.extend_from_slice(&self.get_styles_diff(&self.current_styles, &temp_styles));
+            data.extend_from_slice(&esc_pos_barcode.get_command());
+            data.extend_from_slice(b"\n");
+            data.extend_from_slice(&self.get_styles_diff(&temp_styles, &self.current_styles));
+        } else {
+            data.extend_from_slice(&esc_pos_barcode.get_command());
+            data.extend_from_slice(b"\n");
+        }
         Ok(data)
     }
 
     /// Procesa código QR
     fn process_qr(&mut self, qr: &Qr) -> Result<Vec<u8>, String> {
+        if qr.data.is_empty() {
+            return Err("QR data cannot be empty".to_string());
+        }
+
+        let error_correction = match qr.error_correction.as_str() {
+            "L" => QRErrorCorrection::L,
+            "M" => QRErrorCorrection::M,
+            "Q" => QRErrorCorrection::Q,
+            "H" => QRErrorCorrection::H,
+            _ => QRErrorCorrection::M,
+        };
+
+        if qr.data.len() > error_correction.max_data_len() {
+            return Err(format!(
+                "QR data length {} exceeds maximum {} for error correction level '{}'",
+                qr.data.len(),
+                error_correction.max_data_len(),
+                qr.error_correction
+            ));
+        }
+
         let model = if qr.model == 1 {
             QRModel::Model1
         } else {
@@ -299,15 +334,7 @@ impl ProcessPrint {
             14 => QRSize::Size14,
             15 => QRSize::Size15,
             16 => QRSize::Size16,
-            _ => QRSize::Size6, // default
-        };
-
-        let error_correction = match qr.error_correction.as_str() {
-            "L" => QRErrorCorrection::L,
-            "M" => QRErrorCorrection::M,
-            "Q" => QRErrorCorrection::Q,
-            "H" => QRErrorCorrection::H,
-            _ => QRErrorCorrection::M, // default
+            _ => QRSize::Size6,
         };
 
         let esc_pos_qr = QR::new(qr.data.clone())
@@ -315,19 +342,18 @@ impl ProcessPrint {
             .set_size(size)
             .set_error_correction(error_correction);
 
-        let mut temp_styles = self.current_styles.clone();
-        if let Some(ref align) = qr.align {
-            temp_styles.align = Some(align.clone());
-        }
-
-        let diff_on = self.get_styles_diff(&self.current_styles, &temp_styles);
-        let diff_off = self.get_styles_diff(&temp_styles, &self.current_styles);
-
         let mut data = Vec::new();
-        data.extend_from_slice(&diff_on);
-        data.extend_from_slice(&esc_pos_qr.get_command());
-        data.extend_from_slice(b"\n");
-        data.extend_from_slice(&diff_off);
+        if let Some(ref align) = qr.align {
+            let mut temp_styles = self.current_styles.clone();
+            temp_styles.align = Some(align.clone());
+            data.extend_from_slice(&self.get_styles_diff(&self.current_styles, &temp_styles));
+            data.extend_from_slice(&esc_pos_qr.get_command());
+            data.extend_from_slice(b"\n");
+            data.extend_from_slice(&self.get_styles_diff(&temp_styles, &self.current_styles));
+        } else {
+            data.extend_from_slice(&esc_pos_qr.get_command());
+            data.extend_from_slice(b"\n");
+        }
 
         Ok(data)
     }
@@ -361,6 +387,10 @@ impl ProcessPrint {
 
     /// Procesa imagen
     fn process_imagen(&mut self, imagen: &Image) -> Result<Vec<u8>, String> {
+        if imagen.data.is_empty() {
+            return Err("Image data cannot be empty".to_string());
+        }
+
         let alignment = match imagen.align.as_str() {
             "left" => ImageAlignment::Left,
             "center" => ImageAlignment::Center,
@@ -441,11 +471,39 @@ impl ProcessPrint {
     }
 
     fn process_table_fn(&mut self, table: &Table) -> Result<Vec<u8>, String> {
-        process_table(
-            table,
-            self.print_job_context.paper_size.chars_per_line(),
-            table.truncate,
-        )
+        let num_columns = table.columns as usize;
+        let chars_per_line = self.print_job_context.paper_size.chars_per_line();
+
+        // When explicit widths are given, they must sum to the paper width
+        if let Some(widths) = &table.column_widths {
+            let total: i32 = widths.iter().map(|&w| w as i32).sum();
+            if total != chars_per_line {
+                return Err(format!(
+                    "column_widths sum ({}) must equal paper chars_per_line ({})",
+                    total, chars_per_line
+                ));
+            }
+        }
+
+        // Each row (header and body) must have exactly num_columns cells
+        if let Some(header) = &table.header {
+            if !header.is_empty() && header.len() != num_columns {
+                return Err(format!(
+                    "Table header has {} cells but {} columns declared",
+                    header.len(), num_columns
+                ));
+            }
+        }
+        for (row_idx, row) in table.body.iter().enumerate() {
+            if row.len() != num_columns {
+                return Err(format!(
+                    "Table row {} has {} cells but {} columns declared",
+                    row_idx, row.len(), num_columns
+                ));
+            }
+        }
+
+        process_table(table, chars_per_line, table.truncate)
     }
 
     /// Procesa línea horizontal
@@ -459,7 +517,10 @@ impl ProcessPrint {
         let char_count = self.calculate_line_width();
 
         // Obtener el primer carácter (o usar '-' por defecto)
-        let character = line.character.chars().next().unwrap_or('-');
+        let character = line.character.chars().next().unwrap_or_else(|| {
+            log::warn!("Line character is empty, falling back to '-'");
+            '-'
+        });
 
         // Crear la línea repitiendo el carácter
         let line_text = character.to_string().repeat(char_count);
@@ -481,8 +542,12 @@ impl ProcessPrint {
             .unwrap_or("normal")
             .to_lowercase();
         let width_multiplier = match current_size.as_str() {
-            "width" | "double" => 0.5, // DoubleWidth or DoubleSize reduce characters per line
-            _ => 1.0,
+            "width" | "double" => 0.5,
+            "normal" | "height" => 1.0,
+            unknown => {
+                log::warn!("Unknown font size '{}', defaulting to multiplier 1.0", unknown);
+                1.0
+            }
         };
 
         // Ajustar según el tipo de fuente
@@ -493,9 +558,13 @@ impl ProcessPrint {
             .unwrap_or("a")
             .to_lowercase();
         let font_multiplier = match current_font.as_str() {
-            "b" => 1.3, // Font B es más pequeña, más caracteres
-            "c" => 1.5, // Font C es aún más pequeña
-            _ => 1.0,   // Font A
+            "b" => 1.3,
+            "c" => 1.5,
+            "a" => 1.0,
+            unknown => {
+                log::warn!("Unknown font '{}', defaulting to multiplier 1.0", unknown);
+                1.0
+            }
         };
 
         let calculated_width = (self.print_job_context.paper_size.chars_per_line() as f32

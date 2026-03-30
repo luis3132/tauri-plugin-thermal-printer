@@ -1,3 +1,10 @@
+/// ESC/POS GS V mode byte for partial cut (also used as default)
+pub const CUT_MODE_PARTIAL: u8 = 65;
+/// ESC/POS GS V mode byte for full cut
+pub const CUT_MODE_FULL: u8 = 66;
+/// Feed lines added after the last print section when not cutting
+pub const POST_PRINT_FEED_LINES: u8 = 5;
+
 /// Comandos de control de la impresora térmica
 pub struct PrinterControl;
 

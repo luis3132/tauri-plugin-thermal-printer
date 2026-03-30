@@ -22,6 +22,8 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [List Printers](#list-printers)
   - [Test Printer](#test-printer)
   - [Print Document](#print-document)
+  - [Paper Size Helpers (TypeScript)](#paper-size-helpers-typescript)
+  - [Error Handling](#error-handling)
 - [Section Types](#section-types)
   - [Title](#title)
   - [Subtitle](#subtitle)
@@ -228,7 +230,11 @@ Get all printers available in the system. It just lists the configured printers.
 ```typescript
 import { list_thermal_printers } from "tauri-plugin-thermal-printer";
 
-const response = await list_thermal_printers();
+try {
+  const response = await list_thermal_printers();
+} catch (error) {
+  console.log("List printers failed: " + error)
+}
 ```
 
 #### Response
@@ -265,7 +271,7 @@ Send a print test to a specific printer to verify functionality.
 ```typescript
 import { test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer";
 
-const response = await test_thermal_printer({
+try { await test_thermal_printer({
   "printer_info": {
     "printer": "TM-T20II",
     "paper_size": "Mm80",
@@ -293,7 +299,7 @@ const response = await test_thermal_printer({
   "test_all_fonts": false,
   "test_invert": false,
   "test_rotate": false
-} as TestPrintRequest)
+} as TestPrintRequest) } catch (error) { console.error("Test print failed:", error); }
 ```
 
 #### Request parameters (TestPrintRequest):
@@ -320,9 +326,7 @@ const response = await test_thermal_printer({
 | `test_rotate` | boolean | ❌ No | Text rotation test (default: `false`) |
 
 #### Response:
-Returns `boolean`:
-- `true`: Test completed successfully
-- `false`: Test failed
+Returns `Promise<void>`. Resolves when the test print completes successfully. **Throws a `string`** with the error message if it fails. Use `try/catch` to handle errors — see [Error Handling](#error-handling).
 
 ---
 
@@ -334,7 +338,7 @@ Print a personalized document with the specified sections.
 ```typescript
 import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
 
-const response = await print_thermal_printer({
+try { await print_thermal_printer({
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
@@ -351,33 +355,114 @@ const response = await print_thermal_printer({
     {"Beep": {"times": 1, "duration": 100}},
     {"Drawer": {"pin": 2, "pulse_time": 100}},
     {"Qr": {"data": "https://example.com", "size": 5, "error_correction": "M", "model": 2}},
-    {"Barcode": {"data": "123456789", "barcode_type": "CODE128", "width": 2, "height": 100, "text_position": "below"}},
-    {"Table": {"columns": 3, "column_widths": [10, 15, 10], "header": [{"text": "Col1"}, {"text": "Col2"}, {"text": "Col3"}], "body": [[{"text": "Data1"}, {"text": "Data2"}, {"text": "Data3"}]], "truncate": false}},
+    {"Barcode": {"data": "123456789012", "barcode_type": "CODE128", "width": 2, "height": 100, "text_position": "below"}},
+    {"Table": {"columns": 3, "column_widths": [16, 16, 16], "header": [{"text": "Col1"}, {"text": "Col2"}, {"text": "Col3"}], "body": [[{"text": "Data1"}, {"text": "Data2"}, {"text": "Data3"}]], "truncate": false}},
     {"DataMatrix": {"data": "DataMatrix data", "size": 5}},
     {"Pdf417": {"data": "PDF417 data", "columns": 2, "rows": 5, "width": 3, "height": 5, "error_correction": 2}},
-    {"Image": {"data": "{please introduce a base64 data image}", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
+    {"Image": {"data": "{base64 image data}", "max_width": 384, "align": "center", "dithering": true, "size": "normal"}},
     {"Logo": {"key_code": 1, "mode": "normal"}},
     {"Line": {"character": "="}}
   ]
-} as PrintJobRequest)
+} as PrintJobRequest) } catch (error) { console.error("Print failed:", error); }
 ```
 
 #### Response:
-Returns `boolean`:
-- `true`: Print completed successfully
-- `false`: Print failed
+Returns `Promise<void>`. Resolves when printing completes successfully. **Throws a `string`** with the error message if the job fails (e.g., printer not found, invalid barcode data, QR data too long). Use `try/catch` to handle errors — see [Error Handling](#error-handling).
 
 #### Main parameters (PrintJobRequest):
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `printer` | string | ✅ Yes | Printer name |
-| `paper_size` | string | ❌ No | Paper size: `"Mm58"` or `"Mm80"` (default: `"Mm80"`) |
+| `paper_size` | PaperSize | ❌ No | Paper size (default: `"Mm80"`) — see [Paper Sizes](#paper-sizes) |
 | `options` | PrinterOptions | ❌ No | Configuration options |
 | `options.cut_paper` | boolean | ❌ No | Cut paper after printing (default: `true`) |
 | `options.beep` | boolean | ❌ No | Beep after printing (default: `false`) |
 | `options.open_cash_drawer` | boolean | ❌ No | Open cash drawer after printing (default: `false`) |
 | `sections` | array | ✅ Yes | Array of sections to print (see [Section Types](#section-types)) |
+
+#### Paper Sizes
+
+| Value | Paper width | Chars/line | Typical use |
+|-------|-------------|------------|-------------|
+| `"Mm40"` | 40mm | 21 | Handheld ticket printers |
+| `"Mm44"` | 44mm | 24 | Compact POS |
+| `"Mm58"` | 58mm | 32 | Small format (most common portable) |
+| `"Mm72"` | 72mm | 42 | Mid-range printers |
+| `"Mm80"` | 80mm | 48 | Standard large format (default) |
+| `"Mm104"` | 104mm | 62 | Wide format |
+
+#### Paper Size Helpers (TypeScript)
+
+The TypeScript package exports constants and helper functions with the same values used by the Rust backend.
+
+```typescript
+import {
+  PAPER_SIZE_CHARS_PER_LINE,
+  PAPER_SIZE_PIXELS_WIDTH,
+  DEFAULT_PAPER_SIZE,
+  getPaperSizeCharsPerLine,
+  getPaperSizePixelsWidth,
+  type PaperSize,
+} from "tauri-plugin-thermal-printer";
+
+const size: PaperSize = "Mm58";
+
+console.log(DEFAULT_PAPER_SIZE); // "Mm80"
+console.log(PAPER_SIZE_CHARS_PER_LINE[size]); // 32
+console.log(PAPER_SIZE_PIXELS_WIDTH[size]); // 384
+
+// Equivalent helper functions:
+console.log(getPaperSizeCharsPerLine(size)); // 32
+console.log(getPaperSizePixelsWidth(size)); // 384
+```
+
+Values per paper size:
+
+| PaperSize | Chars/line | Pixels width |
+|-----------|------------|--------------|
+| `"Mm40"` | 21 | 256 |
+| `"Mm44"` | 24 | 288 |
+| `"Mm58"` | 32 | 384 |
+| `"Mm72"` | 42 | 512 |
+| `"Mm80"` | 48 | 576 |
+| `"Mm104"` | 62 | 752 |
+
+---
+
+### Error Handling
+
+`print_thermal_printer` and `test_thermal_printer` now return `Promise<void>` and **throw** a descriptive `string` when something fails. Always wrap calls in `try/catch`:
+
+```typescript
+import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
+
+try {
+  await print_thermal_printer(job);
+} catch (error) {
+  // `error` is a string describing what went wrong, e.g.:
+  // "Printer not specified"
+  // "Barcode data cannot be empty"
+  // "Barcode type 'EAN13' only accepts numeric digits"
+  // "QR data length 5000 exceeds maximum 4296 for error correction level 'M'"
+  // "Table row 2 has 2 cells but 3 columns declared"
+  // "column_widths sum (45) must equal paper chars_per_line (48)"
+  // "Image data cannot be empty"
+  console.error("Print failed:", error);
+}
+```
+
+`list_thermal_printers` also throws on failure (e.g., CUPS not available):
+
+```typescript
+try {
+  const printers = await list_thermal_printers();
+} catch (error) {
+  console.error("Could not list printers:", error);
+}
+```
+
+---
 
 #### Section Types
 
@@ -516,8 +601,11 @@ Advances the paper by a specific number of lines.
 }
 ```
 
-- `feed_type` (string, required): Feed type ("lines")
-- `value` (number, required): Number of lines to advance
+- `feed_type` (string, required): Feed type:
+  - `"lines"` — advance N lines (`ESC d n`)
+  - `"dots"` — advance N dot rows (`ESC J n`)
+  - `"line_feed"` — send N raw LF characters
+- `value` (number, required): Amount to advance
 
 ##### Cut
 Cuts the paper.
@@ -531,7 +619,11 @@ Cuts the paper.
 }
 ```
 
-- `mode` (string, required): Cut mode ("full", "partial")
+- `mode` (string, required): Cut mode:
+  - `"full"` — full cut
+  - `"partial"` — partial cut (default fallback)
+  - `"partial_alt"` — partial cut (alternate)
+  - `"partial_alt2"` — full cut (alternate)
 - `feed` (number, required): Lines to advance before cutting
 
 ##### Beep
@@ -579,11 +671,11 @@ Prints a QR code.
 }
 ```
 
-- `data` (string, required): QR data
-- `size` (number, required): Module size (1-16)
-- `error_correction` (string, required): Error correction level ("L", "M", "Q", "H")
-- `model` (number, required): QR model (1 or 2)
-- `align` (string, optional): Alignment ("left", "center", "right")
+- `data` (string, required): QR data. **Must not be empty.** Maximum length depends on error correction level — the backend will throw if exceeded.
+- `size` (number, required): Module size (1–16)
+- `error_correction` (string, required): `"L"` (7089 chars max) | `"M"` (4296, default) | `"Q"` (2953) | `"H"` (1817)
+- `model` (number, required): QR model (`1` or `2`)
+- `align` (string, optional): `"left"` | `"center"` | `"right"`
 
 ##### Barcode
 Prints a barcode.
@@ -601,12 +693,12 @@ Prints a barcode.
 }
 ```
 
-- `data` (string, required): Barcode data
-- `barcode_type` (string, required): Type ("UPC-A", "UPC-E", "EAN13", "EAN8", "CODE39", "ITF", "CODABAR", "CODE93", "CODE128")
-- `width` (number, required): Module width
-- `height` (number, required): Height in dots
-- `text_position` (string, required): Text position ("not_printed", "above", "below", "both")
-- `align` (string, optional): Horizontal alignment ("left", "center", "right") (default: current global alignment)
+- `data` (string, required): Barcode data. **Must not be empty.** Numeric-only types (`UPC-A`, `UPC-E`, `EAN13`, `EAN8`, `ITF`) only accept digit characters — the backend will throw an error otherwise.
+- `barcode_type` (string, required): `"UPC-A"` | `"UPC-E"` | `"EAN13"` | `"EAN8"` | `"CODE39"` | `"ITF"` | `"CODABAR"` | `"CODE93"` | `"CODE128"`
+- `width` (number, required): Module width (1–6)
+- `height` (number, required): Height in dots (must be > 0)
+- `text_position` (string, required): `"none"` | `"above"` | `"below"` | `"both"`
+- `align` (string, optional): `"left"` | `"center"` | `"right"` (default: current global alignment)
 
 ##### Table
 Prints a table.
@@ -651,10 +743,10 @@ Or simply:
 ```
 
 - `columns` (number, required): Number of columns
-- `column_widths` (array, optional): Widths of each column. If not provided, columns will be evenly distributed across the paper width
-- `header` (array, optional): Column headers (array of Text objects)
-- `body` (array, required): Data rows (array of arrays of Text objects)
-- `truncate` (boolean, optional): Truncate long text (default: false)
+- `column_widths` (array, optional): Widths of each column in characters. **When provided: length must equal `columns` and the sum must equal the paper's chars/line** (e.g., 48 for Mm80). If omitted, columns are distributed evenly.
+- `header` (array, optional): Column headers — must have exactly `columns` elements if provided
+- `body` (array, required): Data rows — each row must have exactly `columns` cells
+- `truncate` (boolean, optional): Truncate long text instead of wrapping (default: `false`)
 
 ##### DataMatrix
 Prints a DataMatrix code.
@@ -709,11 +801,11 @@ Prints an image.
 }
 ```
 
-- `data` (string, required): Base64 encoded image
-- `max_width` (number, required): Maximum width in pixels
-- `align` (string, required): Alignment ("left", "center", "right")
-- `dithering` (boolean, required): Apply dithering
-- `size` (string, required): Size ("normal", "double_width", "double_height", "quadruple")
+- `data` (string, required): Base64 encoded image. **Must not be empty.**
+- `max_width` (number, required): Maximum width in pixels (0 or values larger than the paper width are clamped to the paper width automatically)
+- `align` (string, required): `"left"` | `"center"` | `"right"`
+- `dithering` (boolean, required): Apply Floyd-Steinberg dithering for better quality on monochrome printers
+- `size` (string, required): `"normal"` | `"double_width"` | `"double_height"` | `"quadruple"`
 
 ##### Logo
 Prints a logo stored in the printer.

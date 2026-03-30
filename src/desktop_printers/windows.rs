@@ -105,6 +105,20 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
             return Err(std::io::Error::last_os_error().into());
         }
 
+        // Safety: verify that the buffer is large enough to hold `returned`
+        // PRINTER_INFO_2W structs before dereferencing any pointer.
+        let struct_size = std::mem::size_of::<PRINTER_INFO_2W>();
+        let required = (returned as usize).saturating_mul(struct_size);
+        if buffer.len() < required {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Buffer too small: have {} bytes, need {} for {} printers",
+                    buffer.len(), required, returned
+                ),
+            ).into());
+        }
+
         let printer_info_array = buffer.as_ptr() as *const PRINTER_INFO_2W;
 
         for i in 0..returned {
@@ -153,8 +167,8 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
         }
     }
 
-    println!("Found {} printers", printers.len());
-    println!("Printers info: {:#?}", printers);
+    log::debug!("Found {} printers", printers.len());
+    log::debug!("Printers info: {:#?}", printers);
 
     Ok(printers)
 }
@@ -164,14 +178,17 @@ fn wide_to_string(wide: LPWSTR) -> String {
         return String::new();
     }
     unsafe {
-        let len = (0..).take_while(|&i| *wide.offset(i) != 0).count();
+        // Safety: cap the search length to prevent unbounded reads if the
+        // WinAPI returns a string without a null terminator due to corruption.
+        const MAX_STRING_LEN: usize = 4096;
+        let len = (0..MAX_STRING_LEN).take_while(|&i| *wide.offset(i as isize) != 0).count();
         let slice = std::slice::from_raw_parts(wide, len);
         String::from_utf16_lossy(slice)
     }
 }
 
 pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()> {
-    println!(
+    log::debug!(
         "Sending raw data to printer '{}' ({} bytes)",
         printer_name,
         data.len()
@@ -195,11 +212,11 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
         );
 
         if result == 0 {
-            eprintln!("Error opening printer '{}'", printer_name);
+            log::error!("Error opening printer '{}'", printer_name);
             return Err(std::io::Error::last_os_error());
         }
 
-        println!("Opened printer '{}'", printer_name);
+        log::debug!("Opened printer '{}'", printer_name);
 
         // Preparar información del documento
         let doc_name: Vec<u16> = OsStr::new("Raw Print Job")
@@ -221,17 +238,17 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
         // Iniciar el documento
         let job_id = StartDocPrinterW(h_printer, 1, &mut doc_info as *mut _ as *mut _);
         if job_id == 0 {
-            eprintln!("Error starting document on printer '{}'", printer_name);
+            log::error!("Error starting document on printer '{}'", printer_name);
             ClosePrinter(h_printer);
             return Err(std::io::Error::last_os_error());
         }
 
-        println!("Started print job {}", job_id);
+        log::debug!("Started print job {}", job_id);
 
         // Iniciar página
         let page_result = StartPagePrinter(h_printer);
         if page_result == 0 {
-            eprintln!("Error starting page on printer '{}'", printer_name);
+            log::error!("Error starting page on printer '{}'", printer_name);
             EndDocPrinter(h_printer);
             ClosePrinter(h_printer);
             return Err(std::io::Error::last_os_error());
@@ -247,14 +264,14 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
         );
 
         if write_result == 0 {
-            eprintln!("Error writing to printer '{}'", printer_name);
+            log::error!("Error writing to printer '{}'", printer_name);
             EndPagePrinter(h_printer);
             EndDocPrinter(h_printer);
             ClosePrinter(h_printer);
             return Err(std::io::Error::last_os_error());
         }
 
-        println!(
+        log::debug!(
             "Wrote {} bytes to printer '{}'",
             bytes_written, printer_name
         );
@@ -268,7 +285,7 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
         // Cerrar la impresora
         ClosePrinter(h_printer);
 
-        println!("Successfully completed print job on '{}'", printer_name);
+        log::debug!("Successfully completed print job on '{}'", printer_name);
         Ok(())
     }
 }

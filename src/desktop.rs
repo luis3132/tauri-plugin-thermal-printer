@@ -24,7 +24,7 @@ impl<R: Runtime> ThermalPrinter<R> {
             let printer = crate::desktop_printers::windows::get_printers_info_win()
                 .map_err(|err| {
                     let err_msg = format!("Error getting printers info: {}", err);
-                    println!("{}", err_msg);
+                    log::error!("{}", err_msg);
                     Error::Io(std::io::Error::new(std::io::ErrorKind::Other, err_msg))
                 })?;
             Ok(printer)
@@ -40,14 +40,14 @@ impl<R: Runtime> ThermalPrinter<R> {
         let mut process_print = ProcessPrint::new();
         let data = process_print.generate_document(&print_job_request)
             .map_err(|err| {
-                println!("Error generating document: {}", err);
+                log::error!("Error generating document: {}", err);
                 Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
             })?;
         #[cfg(target_os = "windows")]
         {
             crate::desktop_printers::windows::print_raw_data_win(&print_job_request.printer, &data)
                 .map_err(|err| {
-                    println!("Error printing raw data: {}", err);
+                    log::error!("Error printing raw data: {}", err);
                     Error::Io(err)
                 })?;
         }
@@ -55,7 +55,7 @@ impl<R: Runtime> ThermalPrinter<R> {
         {
             crate::desktop_printers::unix_base::print_raw_data(&print_job_request.printer, &data)
                 .map_err(|err| {
-                    println!("Error printing raw data: {}", err);
+                    log::error!("Error printing raw data: {}", err);
                     err
                 })?;
         }
@@ -66,14 +66,14 @@ impl<R: Runtime> ThermalPrinter<R> {
         let mut process_print = TestPrinter::new();
         let data = process_print.generate_test_document(&print_job_request)
             .map_err(|err| {
-                println!("Error generating document: {}", err);
+                log::error!("Error generating test document: {}", err);
                 Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
             })?;
         #[cfg(target_os = "windows")]
         {
             crate::desktop_printers::windows::print_raw_data_win(&print_job_request.printer_info.printer, &data)
                 .map_err(|err| {
-                    println!("Error printing raw data: {}", err);
+                    log::error!("Error printing raw data: {}", err);
                     Error::Io(err)
                 })?;
         }
@@ -81,7 +81,7 @@ impl<R: Runtime> ThermalPrinter<R> {
         {
             crate::desktop_printers::unix_base::print_raw_data(&print_job_request.printer_info.printer, &data)
                 .map_err(|err| {
-                    println!("Error printing raw data: {}", err);
+                    log::error!("Error printing raw data: {}", err);
                     err
                 })?;
         }
