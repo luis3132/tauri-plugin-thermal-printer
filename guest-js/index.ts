@@ -413,6 +413,145 @@ export function globalStyles(styles: GlobalStyles): PrintSections {
   return { GlobalStyles: styles }
 }
 
+/** Creates a Beep section */
+export function beep(times: number = 1, duration: number = 3): PrintSections {
+  return { Beep: { times, duration } }
+}
+
+/** Creates a Drawer section */
+export function drawer(pin: 2 | 5 = 2, pulse_time: number = 120): PrintSections {
+  return { Drawer: { pin, pulse_time } }
+}
+
+/** Creates a Table section */
+export function table(
+  columns: number,
+  body: Text[][],
+  options?: {
+    column_widths?: number[]
+    header?: Text[]
+    truncate?: boolean
+  },
+): PrintSections {
+  return {
+    Table: {
+      columns,
+      body,
+      column_widths: options?.column_widths,
+      header: options?.header,
+      truncate: options?.truncate ?? true,
+    },
+  }
+}
+
+/** Creates a QR section */
+export function qr(
+  data: string,
+  options?: {
+    size?: number
+    error_correction?: QrErrorCorrection
+    model?: 1 | 2
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    Qr: {
+      data,
+      size: options?.size ?? 6,
+      error_correction: options?.error_correction ?? 'M',
+      model: options?.model ?? 2,
+      align: options?.align,
+    },
+  }
+}
+
+/** Creates a Barcode section */
+export function barcode(
+  data: string,
+  barcode_type: BarcodeType = 'CODE128',
+  options?: {
+    width?: number
+    height?: number
+    text_position?: BarcodeTextPosition
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    Barcode: {
+      data,
+      barcode_type,
+      width: options?.width ?? 3,
+      height: options?.height ?? 80,
+      text_position: options?.text_position ?? 'below',
+      align: options?.align,
+    },
+  }
+}
+
+/** Creates a DataMatrix section */
+export function dataMatrix(data: string, size: number = 6): PrintSections {
+  return {
+    DataMatrix: {
+      data,
+      size,
+    },
+  }
+}
+
+/** Creates a PDF417 section */
+export function pdf417(
+  data: string,
+  options?: {
+    columns?: number
+    rows?: number
+    width?: number
+    height?: number
+    error_correction?: number
+  },
+): PrintSections {
+  return {
+    Pdf417: {
+      data,
+      columns: options?.columns ?? 0,
+      rows: options?.rows ?? 0,
+      width: options?.width ?? 2,
+      height: options?.height ?? 3,
+      error_correction: options?.error_correction ?? 2,
+    },
+  }
+}
+
+/** Creates an Image section */
+export function image(
+  data: string,
+  options?: {
+    max_width?: number
+    align?: TextAlign
+    dithering?: boolean
+    size?: ImageMode
+  },
+): PrintSections {
+  return {
+    Image: {
+      data,
+      max_width: options?.max_width ?? 0,
+      align: options?.align ?? 'center',
+      dithering: options?.dithering ?? true,
+      size: options?.size ?? 'normal',
+    },
+  }
+}
+
+/** Creates a Logo section */
+export function logo(key_code: number, mode: ImageMode = 'normal'): PrintSections {
+  return {
+    Logo: {
+      key_code,
+      mode,
+    },
+  }
+}
+
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 /**
