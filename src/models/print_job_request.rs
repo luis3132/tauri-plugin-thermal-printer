@@ -28,6 +28,12 @@ pub struct TestPrintRequest {
     // Secciones de prueba
     #[serde(default = "default_true")]
     pub include_text: bool,
+
+    #[serde(default = "default_false")]
+    pub include_custom_text: bool,
+
+    #[serde(default)]
+    pub custom_text: Option<String>,
     
     #[serde(default = "default_true")]
     pub include_text_styles: bool,

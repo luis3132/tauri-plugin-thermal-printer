@@ -66,6 +66,7 @@ export type CodePage =
   | 'WindowsLatin'
   | 'Russian'
   | 'EasternEurope'
+  | 'AccentRemover'
 
 // ─── Text style constants ─────────────────────────────────────────────────────
 
@@ -187,6 +188,9 @@ export const CODE_PAGE = {
   RUSSIAN: 'Russian' as CodePage,
   /** CP852 — Eastern Europe (Polish, Czech, Slovak, Hungarian) */
   EASTERN_EUROPE: 'EasternEurope' as CodePage,
+  /** Strips accents and special chars to plain ASCII. Use when the printer
+   *  ignores ESC t commands. á→a, é→e, ñ→n, ß→ss, ¿→?, €→EUR, etc. */
+  ACCENT_REMOVER: 'AccentRemover' as CodePage,
 } as const
 
 // ─── Core interfaces ──────────────────────────────────────────────────────────
@@ -358,6 +362,8 @@ export interface PrinterInfo {
 export interface TestPrintRequest {
   printer_info: PrintJobRequest
   include_text?: boolean
+  include_custom_text?: boolean
+  custom_text?: string | null
   include_text_styles?: boolean
   include_alignment?: boolean
   include_columns?: boolean

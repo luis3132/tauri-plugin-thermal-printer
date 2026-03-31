@@ -24,6 +24,8 @@ impl TestPrinter {
                     paper_size: crate::PaperSize::DEFAULT,
                 },
                 include_text: true,
+                include_custom_text: false,
+                custom_text: None,
                 include_text_styles: true,
                 include_alignment: true,
                 include_columns: true,
@@ -61,6 +63,17 @@ impl TestPrinter {
         // ==================== ENCABEZADO ====================
         if request.include_text {
             self.add_header(&mut document)?;
+        }
+
+        if request.include_custom_text {
+            if let Some(custom_text) = request
+                .custom_text
+                .as_deref()
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+            {
+                self.add_custom_text_section(&mut document, custom_text)?;
+            }
         }
 
         if request.include_separators {
@@ -162,6 +175,16 @@ impl TestPrinter {
         document.extend(TextType::Normal.command());
         document.extend(TextType::AlignLeft.command());
         document.extend(b"\n");
+        Ok(())
+    }
+
+    fn add_custom_text_section(&self, document: &mut Vec<u8>, custom_text: &str) -> Result<(), String> {
+        document.extend(TextType::BoldOn.command());
+        document.extend(b">>> TEXTO PERSONALIZADO <<<\n");
+        document.extend(TextType::BoldOff.command());
+        let code_page = self.print_job_context.printer_info.options.code_page;
+        document.extend(code_page.encode_str(custom_text));
+        document.extend(b"\n\n");
         Ok(())
     }
 

@@ -23,6 +23,10 @@ pub enum CodePage {
     Russian,
     /// CP852 — Europa del Este (polaco, checo, eslovaco, húngaro)
     EasternEurope,
+    /// Elimina acentos y caracteres especiales reemplazándolos por su equivalente ASCII.
+    /// Úsalo cuando la impresora no soporta ningún code page alternativo.
+    /// Ej: á→a, é→e, ñ→n, ü→u, ç→c, ß→ss, ø→o, æ→ae, œ→oe
+    AccentRemover,
 }
 
 impl Default for CodePage {
@@ -43,6 +47,7 @@ impl CodePage {
             CodePage::WindowsLatin => 16,
             CodePage::Russian => 17,
             CodePage::EasternEurope => 18,
+            CodePage::AccentRemover => 0,
         }
     }
 
@@ -68,12 +73,26 @@ impl CodePage {
             CodePage::WindowsLatin => encode_cp1252(c),
             CodePage::Russian => encode_cp866(c),
             CodePage::EasternEurope => encode_cp852(c),
+            CodePage::AccentRemover => strip_accents_str(c)[0],
         }
     }
 
     /// Convierte un string UTF-8 a bytes en la página de código seleccionada
     pub fn encode_str(self, text: &str) -> Vec<u8> {
-        text.chars().map(|c| self.encode_char(c)).collect()
+        if self == CodePage::AccentRemover {
+            // AccentRemover puede expandir un char a múltiples bytes (ß→ss, æ→ae, ...)
+            let mut out = Vec::with_capacity(text.len());
+            for c in text.chars() {
+                if (c as u32) < 128 {
+                    out.push(c as u8);
+                } else {
+                    out.extend_from_slice(strip_accents_str(c));
+                }
+            }
+            out
+        } else {
+            text.chars().map(|c| self.encode_char(c)).collect()
+        }
     }
 }
 
@@ -199,6 +218,98 @@ fn encode_cp866(c: char) -> u8 {
         0x0401 => 0xF2,
         0x0451 => 0xF0,
         _ => b'?',
+    }
+}
+
+// ─── Accent Remover ──────────────────────────────────────────────────────────
+/// Retorna la representación ASCII del char como slice estático.
+fn strip_accents_str(c: char) -> &'static [u8] {
+    match c {
+        // ── Minúsculas con diacrítico ────────────────────────────────────────
+        'á'|'à'|'â'|'ä'|'ã'|'å'|'ā'|'ă'|'ą' => b"a",
+        'é'|'è'|'ê'|'ë'|'ē'|'ě'|'ę' => b"e",
+        'í'|'ì'|'î'|'ï'|'ī'|'ĭ' => b"i",
+        'ó'|'ò'|'ô'|'ö'|'õ'|'ő'|'ō'|'ø' => b"o",
+        'ú'|'ù'|'û'|'ü'|'ű'|'ū'|'ů' => b"u",
+        'ý'|'ÿ' => b"y",
+        'ñ'|'ń'|'ň' => b"n",
+        'ç'|'ć'|'č' => b"c",
+        'ð'|'ď' => b"d",
+        'ł'|'ľ'|'ĺ' => b"l",
+        'ř'|'ŗ' => b"r",
+        'š'|'ś'|'ş' => b"s",
+        'ť'|'ţ' => b"t",
+        'ž'|'ź'|'ż' => b"z",
+        'ğ' => b"g",
+        'ı' => b"i",
+        // multi-char
+        'ß' => b"ss",
+        'æ' => b"ae",
+        'œ' => b"oe",
+        'þ' => b"th",
+        // ── Mayúsculas con diacrítico ────────────────────────────────────────
+        'Á'|'À'|'Â'|'Ä'|'Ã'|'Å'|'Ā'|'Ă'|'Ą' => b"A",
+        'É'|'È'|'Ê'|'Ë'|'Ē'|'Ě'|'Ę' => b"E",
+        'Í'|'Ì'|'Î'|'Ï'|'Ī' => b"I",
+        'Ó'|'Ò'|'Ô'|'Ö'|'Õ'|'Ő'|'Ō'|'Ø' => b"O",
+        'Ú'|'Ù'|'Û'|'Ü'|'Ű'|'Ū'|'Ů' => b"U",
+        'Ý' => b"Y",
+        'Ñ'|'Ń'|'Ň' => b"N",
+        'Ç'|'Ć'|'Č' => b"C",
+        'Ð'|'Ď' => b"D",
+        'Ł'|'Ľ'|'Ĺ' => b"L",
+        'Ř'|'Ŗ' => b"R",
+        'Š'|'Ś'|'Ş' => b"S",
+        'Ť'|'Ţ' => b"T",
+        'Ž'|'Ź'|'Ż' => b"Z",
+        'Ğ' => b"G",
+        'Æ' => b"AE",
+        'Œ' => b"OE",
+        'Þ' => b"TH",
+        // ── Puntuación y símbolos especiales ────────────────────────────────
+        '¿' => b"?",
+        '¡' => b"!",
+        '«' | '»' => b"\"",
+        '\u{2018}' | '\u{2019}' => b"'",   // ' '
+        '\u{201C}' | '\u{201D}' => b"\"",  // " "
+        '–' | '—' => b"-",
+        '…' => b"...",
+        '•' => b"*",
+        '·' => b".",
+        '°' => b"o",
+        '±' => b"+/-",
+        '×' => b"x",
+        '÷' => b"/",
+        '½' => b"1/2",
+        '¼' => b"1/4",
+        '¾' => b"3/4",
+        '€' => b"EUR",
+        '£' => b"GBP",
+        '¥' => b"JPY",
+        '¢' => b"c",
+        '©' => b"(C)",
+        '®' => b"(R)",
+        '™' => b"(TM)",
+        '§' => b"S",
+        '¶' => b"P",
+        '†' => b"+",
+        '‡' => b"++",
+        '‰' => b"0/00",
+        '√' => b"sqrt",
+        '∞' => b"inf",
+        '≈' => b"~",
+        '≠' => b"!=",
+        '≤' => b"<=",
+        '≥' => b">=",
+        '←' => b"<-",
+        '→' => b"->",
+        '↑' => b"^",
+        '↓' => b"v",
+        'µ' => b"u",
+        'ª' => b"a",
+        'º' => b"o",
+        '¬' => b"!",
+        _ => b"?",
     }
 }
 
