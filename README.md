@@ -904,6 +904,8 @@ const options = {
 | `CODE_PAGE.WINDOWS_LATIN` | `"WindowsLatin"` | CP1252 | Wide Western European — includes € |
 | `CODE_PAGE.RUSSIAN` | `"Russian"` | CP866 | **Russian** / Cyrillic |
 | `CODE_PAGE.EASTERN_EUROPE` | `"EasternEurope"` | CP852 | **Polish**, Czech, Slovak, Hungarian |
+| `CODE_PAGE.AccentRemover` | `"AccentRemover"` | - | Removes accents and special characters by converting them to their ASCII equivalents (e.g., á→a, ß→ss). Useful when printers do not support alternative code pages. |
+
 
 > **Note**: Without a `code_page`, accented characters (á, ñ, ü, etc.) will print as `?`. Set it once in `options` and it applies to the entire document.
 
