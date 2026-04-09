@@ -42,31 +42,20 @@ export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
 
 /**
  * Character encoding page to use for printing.
- * Select by language/region — no need to know ESC/POS code page numbers.
  *
- * | Value           | Code Page | Languages                                      |
- * |-----------------|-----------|------------------------------------------------|
- * | Default         | CP437     | ASCII only — no accented characters            |
- * | Spanish         | CP850     | Spanish, French, Italian, German, Portuguese   |
- * | French          | CP850     | Alias of Spanish                               |
- * | Portuguese      | CP860     | Portuguese (includes ã, õ)                     |
- * | CanadianFrench  | CP863     | Canadian French                                |
- * | Nordic          | CP865     | Swedish, Norwegian, Danish, Finnish (å, ø, æ) |
- * | WindowsLatin    | CP1252    | Wide Western European coverage (includes €)    |
- * | Russian         | CP866     | Russian / Cyrillic                             |
- * | EasternEurope   | CP852     | Polish, Czech, Slovak, Hungarian               |
+ * - `{ Page: n }` — sends `ESC t n` to the printer; the user is responsible
+ *   for choosing the correct number for their printer model and ensuring the
+ *   text is already encoded accordingly.
+ * - `"AccentRemover"` — strips accents/diacritics to plain ASCII before
+ *   sending. Use when the printer ignores `ESC t` or has no alternate code
+ *   page. Examples: á→a, é→e, ñ→n, ß→ss, ¿→?, €→EUR.
  */
-export type CodePage =
-  | 'Default'
-  | 'Spanish'
-  | 'French'
-  | 'Portuguese'
-  | 'CanadianFrench'
-  | 'Nordic'
-  | 'WindowsLatin'
-  | 'Russian'
-  | 'EasternEurope'
-  | 'AccentRemover'
+export type CodePage = { Page: number } | 'AccentRemover'
+
+/** Creates a `CodePage` that sends the given ESC/POS code page number. */
+export function codePage(n: number): CodePage {
+  return { Page: n }
+}
 
 // ─── Text style constants ─────────────────────────────────────────────────────
 
@@ -170,24 +159,6 @@ export const CUT_MODE = {
 } as const
 
 export const CODE_PAGE = {
-  /** CP437 — ASCII only, no accented characters */
-  DEFAULT: 'Default' as CodePage,
-  /** CP850 — Spanish, French, Italian, German */
-  SPANISH: 'Spanish' as CodePage,
-  /** CP850 — Alias of Spanish */
-  FRENCH: 'French' as CodePage,
-  /** CP860 — Portuguese (ã, õ) */
-  PORTUGUESE: 'Portuguese' as CodePage,
-  /** CP863 — Canadian French */
-  CANADIAN_FRENCH: 'CanadianFrench' as CodePage,
-  /** CP865 — Nordic languages (å, ø, æ) */
-  NORDIC: 'Nordic' as CodePage,
-  /** CP1252 — Wide Western European, includes € */
-  WINDOWS_LATIN: 'WindowsLatin' as CodePage,
-  /** CP866 — Russian / Cyrillic */
-  RUSSIAN: 'Russian' as CodePage,
-  /** CP852 — Eastern Europe (Polish, Czech, Slovak, Hungarian) */
-  EASTERN_EUROPE: 'EasternEurope' as CodePage,
   /** Strips accents and special chars to plain ASCII. Use when the printer
    *  ignores ESC t commands. á→a, é→e, ñ→n, ß→ss, ¿→?, €→EUR, etc. */
   ACCENT_REMOVER: 'AccentRemover' as CodePage,
@@ -199,7 +170,7 @@ export interface PrinterOptions {
   cut_paper: boolean
   beep: boolean
   open_cash_drawer: boolean
-  /** Character encoding for the printer. Default: 'Default' (ASCII only). */
+  /** Character encoding for the printer. Default: `{ Page: 0 }` (CP437, ASCII only). */
   code_page?: CodePage
 }
 

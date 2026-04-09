@@ -881,31 +881,23 @@ The plugin exports typed constants and builder functions so you never have to ty
 
 Set the character encoding once in `PrinterOptions.code_page` and all text sections (`Title`, `Subtitle`, `Text`, `Table`) will use it automatically.
 
-```typescript
-import { CODE_PAGE, type CodePage } from "tauri-plugin-thermal-printer";
+Each printer model assigns its own numbers to code pages, so `CodePage` accepts the raw page number directly via `codePage(n)`. Check your printer's manual for the correct value.
 
-// In your PrintJobRequest:
+```typescript
+import { codePage, CODE_PAGE, type CodePage } from "tauri-plugin-thermal-printer";
+
 const options = {
   cut_paper: true,
   beep: false,
   open_cash_drawer: false,
-  code_page: CODE_PAGE.SPANISH,  // enables á é í ó ú ñ ü ¿ ¡
+  code_page: codePage(2),  // sends ESC t 2 — CP850 on most Epson-compatible printers
 };
 ```
 
-| Constant | Value | Code Page | Languages |
-|---|---|---|---|
-| `CODE_PAGE.DEFAULT` | `"Default"` | CP437 | ASCII only — no accented characters |
-| `CODE_PAGE.SPANISH` | `"Spanish"` | CP850 | **Spanish**, French, Italian, German, Portuguese |
-| `CODE_PAGE.FRENCH` | `"French"` | CP850 | Alias of Spanish |
-| `CODE_PAGE.PORTUGUESE` | `"Portuguese"` | CP860 | **Portuguese** (ã, õ) |
-| `CODE_PAGE.CANADIAN_FRENCH` | `"CanadianFrench"` | CP863 | Canadian French |
-| `CODE_PAGE.NORDIC` | `"Nordic"` | CP865 | Swedish, Norwegian, Danish, Finnish (å, ø, æ) |
-| `CODE_PAGE.WINDOWS_LATIN` | `"WindowsLatin"` | CP1252 | Wide Western European — includes € |
-| `CODE_PAGE.RUSSIAN` | `"Russian"` | CP866 | **Russian** / Cyrillic |
-| `CODE_PAGE.EASTERN_EUROPE` | `"EasternEurope"` | CP852 | **Polish**, Czech, Slovak, Hungarian |
-| `CODE_PAGE.AccentRemover` | `"AccentRemover"` | - | Removes accents and special characters by converting them to their ASCII equivalents (e.g., á→a, ß→ss). Useful when printers do not support alternative code pages. |
-
+| Value | Description |
+|---|---|
+| `codePage(n)` | Sends `ESC t n` with the given number. The user is responsible for choosing the correct value for their printer model. |
+| `CODE_PAGE.ACCENT_REMOVER` | Removes accents and special characters by converting them to their ASCII equivalents (á→a, ß→ss, ¿→?, €→EUR). Useful when printers do not support alternative code pages. |
 
 > **Note**: Without a `code_page`, accented characters (á, ñ, ü, etc.) will print as `?`. Set it once in `options` and it applies to the entire document.
 

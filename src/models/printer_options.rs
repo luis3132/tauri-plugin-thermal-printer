@@ -7,7 +7,7 @@ pub struct PrinterOptions {
     pub beep: bool,
     pub open_cash_drawer: bool,
     /// Página de código para la impresora. Define qué idioma/caracteres se usarán.
-    /// Por defecto: `CodePage::Default` (CP437, ASCII puro).
+    /// Por defecto: `CodePage::Page(0)` (CP437, ASCII puro).
     #[serde(default)]
     pub code_page: CodePage,
 }
@@ -18,7 +18,7 @@ impl Default for PrinterOptions {
             cut_paper: true,
             beep: false,
             open_cash_drawer: false,
-            code_page: CodePage::Default,
+            code_page: CodePage::default(),
         }
     }
 }

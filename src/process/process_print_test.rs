@@ -182,8 +182,7 @@ impl TestPrinter {
         document.extend(TextType::BoldOn.command());
         document.extend(b">>> TEXTO PERSONALIZADO <<<\n");
         document.extend(TextType::BoldOff.command());
-        let code_page = self.print_job_context.printer_info.options.code_page;
-        document.extend(code_page.encode_str(custom_text));
+        document.extend(custom_text.as_bytes());
         document.extend(b"\n\n");
         Ok(())
     }
@@ -379,7 +378,7 @@ impl TestPrinter {
                 .paper_size
                 .chars_per_line(),
             table.truncate,
-            CodePage::Default,
+            CodePage::default(),
         )?);
         self.add_dashed_line(document);
 
