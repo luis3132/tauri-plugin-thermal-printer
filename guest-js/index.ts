@@ -1,4 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
+import type { Encode } from './encode'
+export { ENCODE } from './encode'
+export type { Encode } from './encode'
 
 // ─── Paper Size ───────────────────────────────────────────────────────────────
 
@@ -41,20 +44,18 @@ export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
 // ─── Code Page (language/encoding) ───────────────────────────────────────────
 
 /**
- * Character encoding page to use for printing.
+ * ESC/POS page selection plus explicit host-side encoding behavior.
  *
- * - `{ Page: n }` — sends `ESC t n` to the printer; the user is responsible
- *   for choosing the correct number for their printer model and ensuring the
- *   text is already encoded accordingly.
- * - `"AccentRemover"` — strips accents/diacritics to plain ASCII before
- *   sending. Use when the printer ignores `ESC t` or has no alternate code
- *   page. Examples: á→a, é→e, ñ→n, ß→ss, ¿→?, €→EUR.
+ * - `codepage` controls the `ESC t n` command sent to the printer.
+ * - `encode` selects the host-side encoding and defaults to
+ *   `ENCODE.ACCENT_REMOVER`.
+ * - `use_gbk` controls whether unmapped non-ASCII characters may fall back
+ *   to GBK. It defaults to `false`.
  */
-export type CodePage = { Page: number } | 'AccentRemover'
-
-/** Creates a `CodePage` that sends the given ESC/POS code page number. */
-export function codePage(n: number): CodePage {
-  return { Page: n }
+export interface CodePage {
+  codepage: number
+  encode?: Encode
+  use_gbk?: boolean
 }
 
 // ─── Text style constants ─────────────────────────────────────────────────────
@@ -158,20 +159,14 @@ export const CUT_MODE = {
   PARTIAL: 'partial' as CutMode,
 } as const
 
-export const CODE_PAGE = {
-  /** Strips accents and special chars to plain ASCII. Use when the printer
-   *  ignores ESC t commands. á→a, é→e, ñ→n, ß→ss, ¿→?, €→EUR, etc. */
-  ACCENT_REMOVER: 'AccentRemover' as CodePage,
-} as const
-
 // ─── Core interfaces ──────────────────────────────────────────────────────────
 
 export interface PrinterOptions {
   cut_paper: boolean
   beep: boolean
   open_cash_drawer: boolean
-  /** Character encoding for the printer. Default: `{ Page: 0 }` (CP437, ASCII only). */
-  code_page?: CodePage
+  /** Required ESC/POS page plus host-side encoding strategy. */
+  code_page: CodePage
 }
 
 export interface GlobalStyles {

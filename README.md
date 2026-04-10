@@ -274,7 +274,7 @@ Send a print test to a specific printer to verify functionality.
 
 #### Request:
 ```typescript
-import { test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer";
+import { ENCODE, test_thermal_printer, type TestPrintRequest } from "tauri-plugin-thermal-printer";
 
 try { await test_thermal_printer({
   "printer_info": {
@@ -283,7 +283,12 @@ try { await test_thermal_printer({
     "options": {
       "cut_paper": true,
       "beep": true,
-      "open_cash_drawer": false
+      "open_cash_drawer": false,
+      "code_page": {
+        "codepage": 6,
+        "encode": ENCODE.WINDOWS_1252,
+        "use_gbk": false
+      }
     },
     "sections": [] // it's not going to print anything
   },
@@ -341,7 +346,7 @@ Print a personalized document with the specified sections.
 
 #### Request:
 ```typescript
-import { print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
+import { ENCODE, print_thermal_printer, type PrintJobRequest } from "tauri-plugin-thermal-printer";
 
 try { await print_thermal_printer({
   "printer": "TM-T20II",
@@ -349,7 +354,12 @@ try { await print_thermal_printer({
   "options": {
     "cut_paper": true,
     "beep": false,
-    "open_cash_drawer": false
+    "open_cash_drawer": false,
+    "code_page": {
+      "codepage": 6,
+      "encode": ENCODE.WINDOWS_1252,
+      "use_gbk": false
+    }
   },
   "sections": [
     {"Title": {"text": "My Business"}},
@@ -384,7 +394,7 @@ Returns `Promise<void>`. Resolves when printing completes successfully. **Throws
 | `options.cut_paper` | boolean | ❌ No | Cut paper after printing (default: `true`) |
 | `options.beep` | boolean | ❌ No | Beep after printing (default: `false`) |
 | `options.open_cash_drawer` | boolean | ❌ No | Open cash drawer after printing (default: `false`) |
-| `options.code_page` | CodePage | ❌ No | Character encoding for special characters (default: `"Default"`) — see [CodePage](#codepage) |
+| `options.code_page` | CodePage | ✅ Yes | Required ESC/POS page selection plus host-side encoding strategy — see [CodePage](#codepage) |
 | `sections` | array | ✅ Yes | Array of sections to print (see [Section Types](#section-types)) |
 
 #### Paper Sizes
@@ -881,25 +891,50 @@ The plugin exports typed constants and builder functions so you never have to ty
 
 Set the character encoding once in `PrinterOptions.code_page` and all text sections (`Title`, `Subtitle`, `Text`, `Table`) will use it automatically.
 
-Each printer model assigns its own numbers to code pages, so `CodePage` accepts the raw page number directly via `codePage(n)`. Check your printer's manual for the correct value.
+Each printer model assigns its own `ESC t n` values, so `CodePage.codepage` accepts the raw page number directly. `CodePage.encode` controls the host-side encoding used before bytes are sent to the printer. `CodePage.use_gbk` explicitly controls whether characters that the selected `encode` cannot represent should be retried with GBK before falling back to the original UTF-8 bytes.
 
 ```typescript
-import { codePage, CODE_PAGE, type CodePage } from "tauri-plugin-thermal-printer";
+import { ENCODE, type CodePage } from "tauri-plugin-thermal-printer";
 
 const options = {
   cut_paper: true,
   beep: false,
   open_cash_drawer: false,
-  code_page: codePage(2),  // sends ESC t 2 — CP850 on most Epson-compatible printers
+  code_page: {
+    codepage: 6,
+    encode: ENCODE.WINDOWS_1252,
+    use_gbk: false,
+  }, // sends ESC t 6
 };
 ```
 
-| Value | Description |
-|---|---|
-| `codePage(n)` | Sends `ESC t n` with the given number. The user is responsible for choosing the correct value for their printer model. |
-| `CODE_PAGE.ACCENT_REMOVER` | Removes accents and special characters by converting them to their ASCII equivalents (á→a, ß→ss, ¿→?, €→EUR). Useful when printers do not support alternative code pages. |
+`CodePage` fields:
 
-> **Note**: Without a `code_page`, accented characters (á, ñ, ü, etc.) will print as `?`. Set it once in `options` and it applies to the entire document.
+| Field | Required | Description |
+|---|---|---|
+| `codepage` | ✅ Yes | Raw `ESC t n` value sent to the printer. |
+| `encode` | ❌ No | Host-side encoding strategy. Defaults to `ENCODE.ACCENT_REMOVER`. |
+| `use_gbk` | ❌ No | Retries GBK for characters that `encode` cannot represent before falling back to the original UTF-8 bytes. Defaults to `false`. |
+
+`ENCODE.ACCENT_REMOVER`:
+
+- Transliterates accented characters to ASCII before any optional GBK retry
+  and final UTF-8 passthrough.
+- Useful when the printer does not have a reliable legacy code page for your
+  text.
+- Examples: `á -> a`, `ß -> ss`, `€ -> EUR`.
+
+All other `ENCODE.*` values come directly from
+[`encoding_rs` statics](https://docs.rs/encoding_rs/latest/encoding_rs/#statics).
+Use them with the same uppercase names exposed by the package.
+
+Examples:
+
+- `ENCODE.WINDOWS_1252` for Western European text
+- `ENCODE.GBK` for GBK output
+- `ENCODE.SHIFT_JIS` for Shift JIS output
+
+> **Note**: `options.code_page` is required. If the selected `encode` cannot represent a character, the plugin retries GBK only when `use_gbk` is `true`; otherwise it silently emits the original UTF-8 bytes for that character.
 
 ---
 
@@ -1020,13 +1055,13 @@ import {
   pdf417,
   image,
   logo,
+  ENCODE,
   TEXT_ALIGN,
   TEXT_SIZE,
   BARCODE_TYPE,
   BARCODE_TEXT_POSITION,
   QR_ERROR_CORRECTION,
   IMAGE_MODE,
-  CODE_PAGE,
 } from "tauri-plugin-thermal-printer";
 
 const job: PrintJobRequest = {
@@ -1036,7 +1071,11 @@ const job: PrintJobRequest = {
     cut_paper: true,
     beep: false,
     open_cash_drawer: false,
-    code_page: CODE_PAGE.WINDOWS_LATIN,
+    code_page: {
+      codepage: 6,
+      encode: ENCODE.WINDOWS_1252,
+      use_gbk: false,
+    },
   },
   sections: [
     globalStyles({ align: TEXT_ALIGN.LEFT }),

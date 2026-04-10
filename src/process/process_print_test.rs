@@ -2,7 +2,7 @@ use crate::commands_esc_pos::codes::barcode::{Barcode, BarcodeTextPosition, Barc
 use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode};
-use crate::commands_esc_pos::text::code_page::CodePage;
+use crate::commands_esc_pos::text::encoder::TextEncoder;
 use crate::commands_esc_pos::text::table;
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::models::print_job_request::PrintJobRequest;
@@ -54,6 +54,7 @@ impl TestPrinter {
         let mut document: Vec<u8> = Vec::new();
 
         self.print_job_context = request.clone();
+        let encoder = TextEncoder::from_code_page(&request.printer_info.options.code_page);
 
         // Inicializar impresora y seleccionar página de código
         document.extend(PrinterControl::initialize());
@@ -72,7 +73,7 @@ impl TestPrinter {
                 .map(str::trim)
                 .filter(|text| !text.is_empty())
             {
-                self.add_custom_text_section(&mut document, custom_text)?;
+                self.add_custom_text_section(&mut document, custom_text, &encoder)?;
             }
         }
 
@@ -111,7 +112,7 @@ impl TestPrinter {
 
         // ==================== COLUMNAS ====================
         if request.include_columns {
-            self.add_columns_section(&mut document)?;
+            self.add_columns_section(&mut document, &encoder)?;
         }
 
         // ==================== CÓDIGOS DE BARRAS ====================
@@ -178,11 +179,16 @@ impl TestPrinter {
         Ok(())
     }
 
-    fn add_custom_text_section(&self, document: &mut Vec<u8>, custom_text: &str) -> Result<(), String> {
+    fn add_custom_text_section(
+        &self,
+        document: &mut Vec<u8>,
+        custom_text: &str,
+        encoder: &TextEncoder,
+    ) -> Result<(), String> {
         document.extend(TextType::BoldOn.command());
         document.extend(b">>> TEXTO PERSONALIZADO <<<\n");
         document.extend(TextType::BoldOff.command());
-        document.extend(custom_text.as_bytes());
+        document.extend(encoder.encode_text(custom_text)?);
         document.extend(b"\n\n");
         Ok(())
     }
@@ -302,7 +308,11 @@ impl TestPrinter {
         Ok(())
     }
 
-    fn add_columns_section(&self, document: &mut Vec<u8>) -> Result<(), String> {
+    fn add_columns_section(
+        &self,
+        document: &mut Vec<u8>,
+        encoder: &TextEncoder,
+    ) -> Result<(), String> {
         document.extend(TextType::BoldOn.command());
         document.extend(b">>> TABLA CON COLUMNAS <<<\n");
         document.extend(TextType::BoldOff.command());
@@ -378,7 +388,7 @@ impl TestPrinter {
                 .paper_size
                 .chars_per_line(),
             table.truncate,
-            CodePage::default(),
+            encoder,
         )?);
         self.add_dashed_line(document);
 
@@ -628,7 +638,10 @@ fn format_utc_datetime() -> String {
     let sec = (time_of_day % 60) as u32;
 
     let (year, month, day) = days_to_ymd(days);
-    format!("{:02}/{:02}/{} {:02}:{:02}:{:02}", day, month, year, hour, min, sec)
+    format!(
+        "{:02}/{:02}/{} {:02}:{:02}:{:02}",
+        day, month, year, hour, min, sec
+    )
 }
 
 /// Converts days since Unix epoch (1970-01-01) to (year, month, day) via the

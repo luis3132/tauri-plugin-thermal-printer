@@ -6,9 +6,7 @@ pub struct PrinterOptions {
     pub cut_paper: bool,
     pub beep: bool,
     pub open_cash_drawer: bool,
-    /// Página de código para la impresora. Define qué idioma/caracteres se usarán.
-    /// Por defecto: `CodePage::Page(0)` (CP437, ASCII puro).
-    #[serde(default)]
+    /// Pagina ESC/POS y estrategia de codificacion del host.
     pub code_page: CodePage,
 }
 
