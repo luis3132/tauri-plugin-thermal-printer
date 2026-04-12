@@ -1,4 +1,4 @@
-use crate::commands_esc_pos::text::code_page::CodePage;
+use crate::commands_esc_pos::text::encoder::TextEncoder;
 use crate::models::print_sections::{GlobalStyles, Line, Subtitle, Text, Title};
 
 #[derive(Debug, Clone, Copy)]
@@ -8,7 +8,7 @@ pub enum TextType {
     DoubleHeight,
     DoubleWidth,
     DoubleSize,
-    
+
     // Estilo de texto
     BoldOn,
     BoldOff,
@@ -16,12 +16,12 @@ pub enum TextType {
     UnderlineOff,
     ItalicOn,
     ItalicOff,
-    
+
     // Alineación
     AlignLeft,
     AlignCenter,
     AlignRight,
-    
+
     // Otros...
     InvertOn,
     InvertOff,
@@ -185,7 +185,7 @@ pub fn get_styles_diff(old: &GlobalStyles, new: &GlobalStyles) -> Vec<u8> {
 pub fn process_title(
     title: &Title,
     current_styles: &GlobalStyles,
-    code_page: CodePage,
+    encoder: &TextEncoder,
 ) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
@@ -195,7 +195,7 @@ pub fn process_title(
     effective_styles.align = Some("center".to_string());
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend(code_page.encode_str(&title.text));
+    output.extend(encoder.encode_text(&title.text)?);
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 
@@ -206,7 +206,7 @@ pub fn process_title(
 pub fn process_subtitle(
     subtitle: &Subtitle,
     current_styles: &GlobalStyles,
-    code_page: CodePage,
+    encoder: &TextEncoder,
 ) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
@@ -216,7 +216,7 @@ pub fn process_subtitle(
     effective_styles.bold = Some(true);
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend(code_page.encode_str(&subtitle.text));
+    output.extend(encoder.encode_text(&subtitle.text)?);
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 
@@ -227,14 +227,14 @@ pub fn process_subtitle(
 pub fn process_text(
     text: &Text,
     current_styles: &GlobalStyles,
-    code_page: CodePage,
+    encoder: &TextEncoder,
 ) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
     let effective_styles = text.styles.as_ref().unwrap_or(current_styles).clone();
 
     output.extend_from_slice(&get_styles_diff(current_styles, &effective_styles));
-    output.extend(code_page.encode_str(&text.text));
+    output.extend(encoder.encode_text(&text.text)?);
     output.extend_from_slice(b"\n");
     output.extend_from_slice(&get_styles_diff(&effective_styles, current_styles));
 
@@ -257,11 +257,7 @@ pub fn process_line(
         _ => 1.0,
     };
 
-    let font = current_styles
-        .font
-        .as_deref()
-        .unwrap_or("a")
-        .to_lowercase();
+    let font = current_styles.font.as_deref().unwrap_or("a").to_lowercase();
     let font_multiplier = match font.as_str() {
         "b" => 1.3,
         "c" => 1.5,
