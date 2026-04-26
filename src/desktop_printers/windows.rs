@@ -3,12 +3,12 @@ use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
 use winapi::shared::minwindef::{DWORD, LPVOID};
+use winapi::um::winnt::LPWSTR;
 use winapi::um::winspool::DOC_INFO_1W;
 use winapi::um::winspool::{
-    ClosePrinter, EndDocPrinter, EndPagePrinter, OpenPrinterW, StartDocPrinterW, StartPagePrinter,
-    WritePrinter, EnumPrintersW, PRINTER_INFO_2W, PRINTER_ENUM_LOCAL,
+    ClosePrinter, EndDocPrinter, EndPagePrinter, EnumPrintersW, OpenPrinterW, StartDocPrinterW,
+    StartPagePrinter, WritePrinter, PRINTER_ENUM_LOCAL, PRINTER_INFO_2W,
 };
-use winapi::um::winnt::LPWSTR;
 
 use crate::PrinterInfo;
 
@@ -114,9 +114,12 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
                 std::io::ErrorKind::InvalidData,
                 format!(
                     "Buffer too small: have {} bytes, need {} for {} printers",
-                    buffer.len(), required, returned
+                    buffer.len(),
+                    required,
+                    returned
                 ),
-            ).into());
+            )
+            .into());
         }
 
         let printer_info_array = buffer.as_ptr() as *const PRINTER_INFO_2W;
@@ -156,7 +159,8 @@ pub fn get_printers_info_win() -> Result<Vec<PrinterInfo>, Box<dyn std::error::E
                 winapi::um::winspool::PRINTER_STATUS_WAITING => "Waiting",
                 winapi::um::winspool::PRINTER_STATUS_WARMING_UP => "Warming Up",
                 _ => "Unknown",
-            }.to_string();
+            }
+            .to_string();
 
             printers.push(PrinterInfo {
                 name,
@@ -181,7 +185,9 @@ fn wide_to_string(wide: LPWSTR) -> String {
         // Safety: cap the search length to prevent unbounded reads if the
         // WinAPI returns a string without a null terminator due to corruption.
         const MAX_STRING_LEN: usize = 4096;
-        let len = (0..MAX_STRING_LEN).take_while(|&i| *wide.offset(i as isize) != 0).count();
+        let len = (0..MAX_STRING_LEN)
+            .take_while(|&i| *wide.offset(i as isize) != 0)
+            .count();
         let slice = std::slice::from_raw_parts(wide, len);
         String::from_utf16_lossy(slice)
     }
@@ -273,7 +279,8 @@ pub fn print_raw_data_win(printer_name: &str, data: &[u8]) -> std::io::Result<()
 
         log::debug!(
             "Wrote {} bytes to printer '{}'",
-            bytes_written, printer_name
+            bytes_written,
+            printer_name
         );
 
         // Finalizar página

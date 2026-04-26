@@ -1,9 +1,9 @@
-use std::process::Command;
-use std::collections::HashMap;
-use std::process::Stdio;
-use std::io::Write;
-use crate::models::print_job_request::PrinterInfo;
 use crate::error::Result;
+use crate::models::print_job_request::PrinterInfo;
+use std::collections::HashMap;
+use std::io::Write;
+use std::process::Command;
+use std::process::Stdio;
 
 fn lpstat(args: &[&str]) -> std::io::Result<String> {
     let output = Command::new("lpstat")
@@ -23,12 +23,14 @@ pub fn get_printers_info() -> Result<Vec<PrinterInfo>> {
     let printers = statuses
         .into_iter()
         .filter_map(|(name, status)| {
-            devices.get(&name).map(|(interface_type, identifier)| PrinterInfo {
-                name,
-                interface_type: interface_type.clone(),
-                identifier: identifier.clone(),
-                status,
-            })
+            devices
+                .get(&name)
+                .map(|(interface_type, identifier)| PrinterInfo {
+                    name,
+                    interface_type: interface_type.clone(),
+                    identifier: identifier.clone(),
+                    status,
+                })
         })
         .collect();
 
@@ -82,7 +84,10 @@ fn parse_device_line(line: &str) -> Option<(String, (String, String))> {
 
     Some((
         name.trim().to_string(),
-        (interface_type.trim().to_string(), identifier.trim().to_string()),
+        (
+            interface_type.trim().to_string(),
+            identifier.trim().to_string(),
+        ),
     ))
 }
 

@@ -1,10 +1,10 @@
 /// Posición del texto HRI (Human Readable Interpretation)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarcodeTextPosition {
-    NotPrinted = 0,  // No imprimir texto
-    Above = 1,       // Encima del código
-    Below = 2,       // Debajo del código
-    Both = 3,        // Ambos lados
+    NotPrinted = 0, // No imprimir texto
+    Above = 1,      // Encima del código
+    Below = 2,      // Debajo del código
+    Both = 3,       // Ambos lados
 }
 
 impl BarcodeTextPosition {

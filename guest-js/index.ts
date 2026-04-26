@@ -162,8 +162,11 @@ export const CUT_MODE = {
 // ─── Core interfaces ──────────────────────────────────────────────────────────
 
 export interface PrinterOptions {
+  /** Append a tail `Cut` section with mode `"partial"` and feed `0`. */
   cut_paper: boolean
+  /** Append a tail `Beep` section with times `1` and duration `3`. */
   beep: boolean
+  /** Append a tail `Drawer` section with pin `2` and pulse time `100`. */
   open_cash_drawer: boolean
   /** Required ESC/POS page plus host-side encoding strategy. */
   code_page: CodePage

@@ -1,6 +1,6 @@
-use image::{DynamicImage, ImageBuffer, Luma, GenericImageView, Pixel};
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
 use exif::{In, Reader, Tag};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, Pixel};
 use std::io::Cursor;
 
 /// Procesador de imágenes para impresoras térmicas
@@ -64,7 +64,7 @@ impl ImageProcessor {
         // Si tiene transparencia, crear imagen con fondo blanco
         if img.color().has_alpha() {
             let mut rgba_img = img.to_rgba8();
-            
+
             // Aplicar fondo blanco a píxeles transparentes
             for pixel in rgba_img.pixels_mut() {
                 let alpha = pixel[3];
@@ -77,7 +77,7 @@ impl ImageProcessor {
                     pixel[3] = 255;
                 }
             }
-            
+
             let img_no_alpha = DynamicImage::ImageRgba8(rgba_img);
             img_no_alpha.resize(new_width, new_height, image::imageops::FilterType::Lanczos3)
         } else {
@@ -97,7 +97,7 @@ impl ImageProcessor {
                 for x in 0..width {
                     let pixel = img.get_pixel(x, y);
                     let channels = pixel.channels();
-                    
+
                     let (r, g, b, a) = if channels.len() >= 4 {
                         (channels[0], channels[1], channels[2], channels[3])
                     } else {
@@ -123,8 +123,9 @@ impl ImageProcessor {
     }
 
     /// Convierte la imagen a blanco y negro usando dithering Floyd-Steinberg
-    pub fn to_binary_with_dithering(grayscale: &ImageBuffer<Luma<u8>, Vec<u8>>) 
-        -> ImageBuffer<Luma<u8>, Vec<u8>> {
+    pub fn to_binary_with_dithering(
+        grayscale: &ImageBuffer<Luma<u8>, Vec<u8>>,
+    ) -> ImageBuffer<Luma<u8>, Vec<u8>> {
         let (width, height) = grayscale.dimensions();
         let mut pixels: Vec<Vec<i32>> = vec![vec![0; width as usize]; height as usize];
 
@@ -142,10 +143,14 @@ impl ImageProcessor {
         for y in 0..height {
             for x in 0..width {
                 let old_pixel = pixels[y as usize][x as usize];
-                let new_pixel = if old_pixel < Self::THRESHOLD as i32 { 0 } else { 255 };
-                
+                let new_pixel = if old_pixel < Self::THRESHOLD as i32 {
+                    0
+                } else {
+                    255
+                };
+
                 binary.put_pixel(x, y, Luma([new_pixel as u8]));
-                
+
                 let error = old_pixel - new_pixel;
 
                 // Distribuir el error a píxeles vecinos
@@ -168,8 +173,9 @@ impl ImageProcessor {
     }
 
     /// Convierte la imagen a blanco y negro sin dithering (umbral simple)
-    pub fn to_binary_simple(grayscale: &ImageBuffer<Luma<u8>, Vec<u8>>) 
-        -> ImageBuffer<Luma<u8>, Vec<u8>> {
+    pub fn to_binary_simple(
+        grayscale: &ImageBuffer<Luma<u8>, Vec<u8>>,
+    ) -> ImageBuffer<Luma<u8>, Vec<u8>> {
         let (width, height) = grayscale.dimensions();
         let mut binary = ImageBuffer::new(width, height);
 
@@ -197,7 +203,7 @@ impl ImageProcessor {
         for y in 0..height {
             for x in 0..width {
                 let pixel = binary.get_pixel(x, y)[0];
-                
+
                 // Solo marcar como negro (bit=1) si el píxel es oscuro
                 // Pixel negro (valor < 127) = imprimir (bit 1)
                 // Pixel blanco (valor >= 127) = no imprimir (bit 0)
@@ -215,12 +221,15 @@ impl ImageProcessor {
     }
 
     /// Procesa una imagen base64 completa: resize, grayscale, binary
-    pub fn process_image(base64_image: &str, max_width: u32, use_dithering: bool) 
-        -> Result<ImageBuffer<Luma<u8>, Vec<u8>>, String> {
+    pub fn process_image(
+        base64_image: &str,
+        max_width: u32,
+        use_dithering: bool,
+    ) -> Result<ImageBuffer<Luma<u8>, Vec<u8>>, String> {
         let original = Self::base64_to_image(base64_image)?;
         let resized = Self::resize_image(&original, max_width);
         let grayscale = Self::to_grayscale(&resized);
-        
+
         let binary = if use_dithering {
             Self::to_binary_with_dithering(&grayscale)
         } else {
@@ -229,5 +238,4 @@ impl ImageProcessor {
 
         Ok(binary)
     }
-
 }

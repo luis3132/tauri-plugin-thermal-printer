@@ -64,38 +64,38 @@ impl QR {
 
         // Función 165 - Seleccionar modelo de QR: GS ( k pL pH cn fn n1 n2
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x04, // pL
-            0x00, // pH
-            0x31, // cn = 49
-            0x41, // fn = 65 (función de modelo)
+            0x1D,               // GS
+            0x28,               // (
+            0x6B,               // k
+            0x04,               // pL
+            0x00,               // pH
+            0x31,               // cn = 49
+            0x41,               // fn = 65 (función de modelo)
             self.model.value(), // n1
-            0x00, // n2
+            0x00,               // n2
         ]);
 
         // Función 167 - Establecer tamaño del módulo: GS ( k pL pH cn fn n
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x31, // cn = 49
-            0x43, // fn = 67 (función de tamaño)
+            0x1D,              // GS
+            0x28,              // (
+            0x6B,              // k
+            0x03,              // pL
+            0x00,              // pH
+            0x31,              // cn = 49
+            0x43,              // fn = 67 (función de tamaño)
             self.size.value(), // n
         ]);
 
         // Función 169 - Establecer nivel de corrección: GS ( k pL pH cn fn n
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x31, // cn = 49
-            0x45, // fn = 69 (función de corrección)
+            0x1D,                          // GS
+            0x28,                          // (
+            0x6B,                          // k
+            0x03,                          // pL
+            0x00,                          // pH
+            0x31,                          // cn = 49
+            0x45,                          // fn = 69 (función de corrección)
             self.error_correction.value(), // n
         ]);
 

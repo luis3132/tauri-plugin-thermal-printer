@@ -56,7 +56,7 @@ pub fn process_section(logo: &LogoSection) -> Result<Vec<u8>, String> {
 impl Logo {
     // /// Comando para guardar una imagen como logo en memoria NV
     // /// Nota: Este comando requiere que la imagen ya esté procesada
-    // /// 
+    // ///
     // /// # Arguments
     // /// * `key_code` - Código de clave para el logo (1-255)
     // /// * `image_data` - Datos de imagen procesados
@@ -91,7 +91,7 @@ impl Logo {
     // }
 
     // /// Comando para guardar un logo desde base64 en memoria NV
-    // /// 
+    // ///
     // /// # Arguments
     // /// * `key_code` - Código de clave para el logo
     // /// * `base64_image` - Imagen en formato base64

@@ -2,16 +2,16 @@ use super::pdf417_error_correction::PDF417ErrorCorrection;
 use crate::models::print_sections::Pdf417 as Pdf417Section;
 
 /// Constructor de comandos para códigos PDF417
-/// 
+///
 /// NOTA: PDF417 no es soportado por todas las impresoras térmicas.
 /// Funciona principalmente en modelos Epson avanzados.
 #[derive(Debug, Clone)]
 pub struct PDF417 {
     data: String,
-    columns: u8,  // Número de columnas (0 = automático, 1-30)
-    rows: u8,     // Número de filas (0 = automático, 3-90)
-    width: u8,    // Ancho del módulo (2-8)
-    height: u8,   // Altura de la fila (2-8)
+    columns: u8, // Número de columnas (0 = automático, 1-30)
+    rows: u8,    // Número de filas (0 = automático, 3-90)
+    width: u8,   // Ancho del módulo (2-8)
+    height: u8,  // Altura de la fila (2-8)
     error_correction: PDF417ErrorCorrection,
 }
 
@@ -23,8 +23,8 @@ impl PDF417 {
     pub fn new(data: String) -> Self {
         Self {
             data,
-            columns: 0,    // Automático
-            rows: 0,       // Automático
+            columns: 0, // Automático
+            rows: 0,    // Automático
             width: 3,
             height: 3,
             error_correction: PDF417ErrorCorrection::Level1,
@@ -85,7 +85,7 @@ impl PDF417 {
     }
 
     /// Genera el comando ESC/POS para PDF417
-    /// 
+    ///
     /// NOTA: PDF417 no es soportado por todas las impresoras térmicas.
     /// Funciona principalmente en modelos Epson avanzados.
     pub fn get_command(&self) -> Vec<u8> {
@@ -99,61 +99,61 @@ impl PDF417 {
 
         // Función 165 (0xA5) - Establecer número de columnas
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x30, // cn = 48 (PDF417)
-            0x41, // fn = 65 (0x41 = columnas)
+            0x1D,         // GS
+            0x28,         // (
+            0x6B,         // k
+            0x03,         // pL
+            0x00,         // pH
+            0x30,         // cn = 48 (PDF417)
+            0x41,         // fn = 65 (0x41 = columnas)
             self.columns, // n (0-30)
         ]);
 
         // Función 166 (0xA6) - Establecer número de filas
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x30, // cn = 48
-            0x42, // fn = 66 (0x42 = filas)
+            0x1D,      // GS
+            0x28,      // (
+            0x6B,      // k
+            0x03,      // pL
+            0x00,      // pH
+            0x30,      // cn = 48
+            0x42,      // fn = 66 (0x42 = filas)
             self.rows, // n (0, 3-90)
         ]);
 
         // Función 167 (0xA7) - Establecer ancho del módulo
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x30, // cn = 48
-            0x43, // fn = 67 (0x43 = ancho)
+            0x1D,       // GS
+            0x28,       // (
+            0x6B,       // k
+            0x03,       // pL
+            0x00,       // pH
+            0x30,       // cn = 48
+            0x43,       // fn = 67 (0x43 = ancho)
             self.width, // n (2-8)
         ]);
 
         // Función 168 (0xA8) - Establecer altura de fila
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x30, // cn = 48
-            0x44, // fn = 68 (0x44 = altura)
+            0x1D,        // GS
+            0x28,        // (
+            0x6B,        // k
+            0x03,        // pL
+            0x00,        // pH
+            0x30,        // cn = 48
+            0x44,        // fn = 68 (0x44 = altura)
             self.height, // n (2-8)
         ]);
 
         // Función 169 (0xA9) - Establecer nivel de corrección de error
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x30, // cn = 48
-            0x45, // fn = 69 (0x45 = corrección)
+            0x1D,                          // GS
+            0x28,                          // (
+            0x6B,                          // k
+            0x03,                          // pL
+            0x00,                          // pH
+            0x30,                          // cn = 48
+            0x45,                          // fn = 69 (0x45 = corrección)
             self.error_correction.value(), // n
         ]);
 

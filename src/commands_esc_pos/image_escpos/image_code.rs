@@ -49,11 +49,8 @@ impl Image {
         let mut output = Vec::new();
 
         // Procesar la imagen
-        let processed_image = ImageProcessor::process_image(
-            &self.base64_image,
-            self.max_width,
-            self.use_dithering
-        )?;
+        let processed_image =
+            ImageProcessor::process_image(&self.base64_image, self.max_width, self.use_dithering)?;
 
         let (width, height) = processed_image.dimensions();
 

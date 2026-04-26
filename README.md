@@ -391,11 +391,13 @@ Returns `Promise<void>`. Resolves when printing completes successfully. **Throws
 | `printer` | string | ✅ Yes | Printer name |
 | `paper_size` | PaperSize | ❌ No | Paper size (default: `"Mm80"`) — see [Paper Sizes](#paper-sizes) |
 | `options` | PrinterOptions | ❌ No | Configuration options |
-| `options.cut_paper` | boolean | ❌ No | Cut paper after printing (default: `true`) |
-| `options.beep` | boolean | ❌ No | Beep after printing (default: `false`) |
-| `options.open_cash_drawer` | boolean | ❌ No | Open cash drawer after printing (default: `false`) |
+| `options.cut_paper` | boolean | ❌ No | Append a tail `Cut` section equivalent to `{ "Cut": { "mode": "partial", "feed": 0 } }` (default: `true`) |
+| `options.beep` | boolean | ❌ No | Append a tail `Beep` section equivalent to `{ "Beep": { "times": 1, "duration": 3 } }` (default: `false`) |
+| `options.open_cash_drawer` | boolean | ❌ No | Append a tail `Drawer` section equivalent to `{ "Drawer": { "pin": 2, "pulse_time": 100 } }` (default: `false`) |
 | `options.code_page` | CodePage | ✅ Yes | Required ESC/POS page selection plus host-side encoding strategy — see [CodePage](#codepage) |
 | `sections` | array | ✅ Yes | Array of sections to print (see [Section Types](#section-types)) |
+
+`options.cut_paper`, `options.beep`, and `options.open_cash_drawer` are tail-action shorthands. They append sections at the end of the document in this fixed order: `Beep` → `Cut` → `Drawer`. They do **not** disable or replace manually declared sections, so if you specify both, both actions are emitted.
 
 #### Paper Sizes
 
@@ -1144,7 +1146,7 @@ await print_thermal_printer(job);
 
 This section contains practical examples for different use cases. Each example demonstrates how to structure print jobs for various business scenarios.
 
-> **NOTE:** Paper is automatically cut at the end of printing with a full cut. You don't need to add a `Cut` section manually unless you want a specific partial cut.
+> **NOTE:** With default options, a tail `Cut` section is appended automatically as `{ "Cut": { "mode": "partial", "feed": 0 } }`. Add your own `Cut` section when you need an extra cut or different parameters.
 
 ### 🛒 Long Receipt (Supermarket - 80mm)
 
@@ -1625,5 +1627,6 @@ const paymentReceipt: PrintJobRequest = {
 - No need to manually reset styles
 
 #### Paper Cutting
-- **Automatic**: Paper is automatically cut at the end with a full cut
-- **Manual** (optional): Add a `Cut` section if you need a specific partial cut
+- **Automatic**: `options.cut_paper = true` appends a tail `Cut` section with `mode: "partial"` and `feed: 0`
+- **Manual**: Add a `Cut` section anywhere in `sections` to issue explicit cut commands
+- **Combined**: Automatic and manual cuts are both emitted when both are present

@@ -52,7 +52,11 @@ fn render_output_line(
         output.bytes.extend_from_slice(&segment.bytes);
 
         if index + 1 < rendered_cells.len() {
-            push_padding(&mut output.bytes, column_widths[index] as usize, segment.width);
+            push_padding(
+                &mut output.bytes,
+                column_widths[index] as usize,
+                segment.width,
+            );
         }
     }
 

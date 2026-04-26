@@ -2,7 +2,7 @@ use super::data_matrix_size::DataMatrixSize;
 use crate::models::print_sections::DataMatrixModel;
 
 /// Constructor de comandos para códigos DataMatrix
-/// 
+///
 /// NOTA: DataMatrix no es soportado por todas las impresoras térmicas.
 /// Funciona principalmente en modelos Epson TM-T88VI y superiores.
 #[derive(Debug, Clone)]
@@ -33,7 +33,7 @@ impl DataMatrix {
     }
 
     /// Genera el comando ESC/POS para DataMatrix
-    /// 
+    ///
     /// NOTA: DataMatrix no es soportado por todas las impresoras térmicas.
     /// Funciona principalmente en modelos Epson TM-T88VI y superiores.
     pub fn get_command(&self) -> Vec<u8> {
@@ -47,13 +47,13 @@ impl DataMatrix {
 
         // Función 67 (0x43) - Establecer tamaño del módulo
         output.extend_from_slice(&[
-            0x1D, // GS
-            0x28, // (
-            0x6B, // k
-            0x03, // pL
-            0x00, // pH
-            0x32, // cn = 50 (0x32 = DataMatrix)
-            0x43, // fn = 67 (0x43 = tamaño de módulo)
+            0x1D,              // GS
+            0x28,              // (
+            0x6B,              // k
+            0x03,              // pL
+            0x00,              // pH
+            0x32,              // cn = 50 (0x32 = DataMatrix)
+            0x43,              // fn = 67 (0x43 = tamaño de módulo)
             self.size.value(), // n (1-16)
         ]);
 

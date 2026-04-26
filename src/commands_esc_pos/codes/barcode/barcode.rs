@@ -15,7 +15,7 @@ pub struct Barcode {
 
 impl Barcode {
     /// Crea un nuevo código de barras con valores por defecto
-    /// 
+    ///
     /// # Arguments
     /// * `barcode_type` - Tipo de código de barras
     /// * `data` - Datos a codificar
@@ -23,14 +23,14 @@ impl Barcode {
         Self {
             barcode_type,
             data,
-            height: 162,  // Altura por defecto
-            width: 3,     // Ancho por defecto
+            height: 162, // Altura por defecto
+            width: 3,    // Ancho por defecto
             text_position: BarcodeTextPosition::Below,
         }
     }
 
     /// Establece la altura del código de barras en puntos
-    /// 
+    ///
     /// # Arguments
     /// * `height` - Altura en puntos (1-255)
     pub fn set_height(mut self, height: u8) -> Self {
@@ -39,7 +39,7 @@ impl Barcode {
     }
 
     /// Establece el ancho del código de barras
-    /// 
+    ///
     /// # Arguments
     /// * `width` - Ancho (2-6)
     pub fn set_width(mut self, width: u8) -> Self {
@@ -50,7 +50,7 @@ impl Barcode {
     }
 
     /// Establece la posición del texto HRI
-    /// 
+    ///
     /// # Arguments
     /// * `position` - Posición del texto
     pub fn set_text_position(mut self, position: BarcodeTextPosition) -> Self {
@@ -116,9 +116,7 @@ pub fn process_section(
         _ => BarcodeType::Code128,
     };
 
-    if barcode_type.requires_numeric_data()
-        && !barcode.data.chars().all(|c| c.is_ascii_digit())
-    {
+    if barcode_type.requires_numeric_data() && !barcode.data.chars().all(|c| c.is_ascii_digit()) {
         return Err(format!(
             "Barcode type '{}' only accepts numeric digits",
             barcode.barcode_type
@@ -185,5 +183,4 @@ impl Barcode {
 
     //     output
     // }
-
 }

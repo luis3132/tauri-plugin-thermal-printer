@@ -4,8 +4,6 @@ use crate::models::print_sections::{Beep, Cut, Drawer, Feed};
 pub const CUT_MODE_PARTIAL: u8 = 65;
 /// ESC/POS GS V mode byte for full cut
 pub const CUT_MODE_FULL: u8 = 66;
-/// Feed lines added after the last print section when not cutting
-pub const POST_PRINT_FEED_LINES: u8 = 5;
 
 /// Comandos de control de la impresora térmica
 pub struct PrinterControl;
@@ -96,10 +94,7 @@ impl PrinterControl {
     }
 
     /// Procesa sección Cut
-    pub fn process_cut(cut: &Cut, cut_paper_enabled: bool) -> Result<Vec<u8>, String> {
-        if !cut_paper_enabled {
-            return Ok(Self::line_feed_multiple(8));
-        }
+    pub fn process_cut(cut: &Cut) -> Result<Vec<u8>, String> {
         let mode = match cut.mode.as_str() {
             "full" | "partial_alt2" => CUT_MODE_FULL,
             _ => CUT_MODE_PARTIAL,
@@ -108,12 +103,13 @@ impl PrinterControl {
     }
 
     /// Procesa sección Beep
-    pub fn process_beep(beep: &Beep, beep_enabled: bool) -> Result<Vec<u8>, String> {
-        if !beep_enabled {
-            return Ok(Vec::new());
-        }
+    pub fn process_beep(beep: &Beep) -> Result<Vec<u8>, String> {
         let times = if beep.times == 0 { 1 } else { beep.times };
-        let duration = if beep.duration == 0 { 100 } else { beep.duration };
+        let duration = if beep.duration == 0 {
+            100
+        } else {
+            beep.duration
+        };
         Ok(Self::beep_custom(times, duration))
     }
 
@@ -137,10 +133,10 @@ impl PrinterControl {
 
         vec![
             0x1B, 0x28, 0x41, // ESC ( A
-            0x05, 0x00,       // pL pH (longitud de parámetros = 5)
-            0x61,             // n (buzzer type = 97 = 0x61)
-            count,            // m (número de veces)
-            duration,         // t (duración en centésimas de segundo)
+            0x05, 0x00,     // pL pH (longitud de parámetros = 5)
+            0x61,     // n (buzzer type = 97 = 0x61)
+            count,    // m (número de veces)
+            duration, // t (duración en centésimas de segundo)
         ]
     }
 

@@ -59,7 +59,9 @@ impl<R: Runtime> ThermalPrinter<R> {
             let data = ProcessPrint::new()
                 .generate_document(&print_job_request)
                 .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
-            let _: () = self.0.run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
+            let _: () = self
+                .0
+                .run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
             Ok(())
         } else {
             Err(Error::UnsupportedPlatform)
@@ -72,7 +74,9 @@ impl<R: Runtime> ThermalPrinter<R> {
             let data = TestPrinter::new()
                 .generate_test_document(&print_job_request)
                 .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)))?;
-            let _: () = self.0.run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
+            let _: () = self
+                .0
+                .run_mobile_plugin("print_raw_data", PrintRawRequest { identifier, data })?;
             Ok(())
         } else {
             Err(Error::UnsupportedPlatform)
