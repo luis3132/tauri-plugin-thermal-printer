@@ -1,6 +1,6 @@
 # Tauri Plugin thermal-printer
 
-> **BREAKING CHANGES:** The 1.4.0 and newer versions **removed** the `PrinterOptions` interface to simplify configuration. The `options` field in `PrintJobRequest` now directly accepts a `CodePage` object. 
+> **BREAKING CHANGES:** The 2.0.0 and newer versions **removed** the `PrinterOptions` interface to simplify configuration. The `options` field in `PrintJobRequest` now directly accepts a `CodePage` object. 
 > The shorthand options (`cut_paper`, `beep`, and `open_cash_drawer`) have been **removed**. If you need these actions, explicitly append them as sections (e.g., `{"Cut": {"mode": "partial", "feed": 0}}`) at the end of your `sections` array.
 
 This plugin provides thermal printer functionality for Tauri applications, allowing you to print documents, test printers, and list available printers.
