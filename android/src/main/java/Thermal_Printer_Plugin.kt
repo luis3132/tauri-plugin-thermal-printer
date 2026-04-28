@@ -134,8 +134,29 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
 
                 Log.d(TAG, "Printing to $identifier (${bytes.size} bytes)")
 
-                val printer = BluetoothPrinter(activity.applicationContext)
-                printer.printRawData(identifier, bytes)
+                if (identifier.startsWith("VID:")) {
+                    // USB format: VID:1234/PID:5678
+                    val parts = identifier.split("/")
+                    val vid = parts[0].removePrefix("VID:").toIntOrNull() ?: 0
+                    val pid = parts[1].removePrefix("PID:").toIntOrNull() ?: 0
+                    
+                    val printer = UsbPrinter(activity.applicationContext)
+                    printer.printRawData(vid, pid, bytes)
+                    
+                } else if (identifier.contains(".") && identifier.contains(":")) {
+                    // Network format: 192.168.1.100:9100
+                    val parts = identifier.split(":")
+                    val ip = parts[0]
+                    val port = parts[1].toIntOrNull() ?: 9100
+                    
+                    val printer = NetworkPrinter()
+                    printer.printRawData(ip, port, bytes)
+                    
+                } else {
+                    // Default to Bluetooth
+                    val printer = BluetoothPrinter(activity.applicationContext)
+                    printer.printRawData(identifier, bytes)
+                }
 
                 invoke.resolve()
 

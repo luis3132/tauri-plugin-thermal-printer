@@ -12,7 +12,12 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import java.net.NetworkInterface
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.Collections
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 /**
  * Información de una impresora descubierta. Los nombres de campo deben coincidir con el struct
@@ -55,8 +60,8 @@ class PrinterDiscovery(private val context: Context) {
 
         safeDiscover("Bluetooth") { discoverBluetoothPrinters() }.let { printers.addAll(it) }
 
-        // Descomentar para incluir escaneo de red (lento ~25 segundos)
-        // safeDiscover("Network") { scanNetworkPrinters() }.let { printers.addAll(it) }
+        // Escaneo de red optimizado con ThreadPool
+        safeDiscover("Network") { scanNetworkPrinters() }.let { printers.addAll(it) }
 
         Log.d(TAG, "Total printers found: ${printers.size}")
         return printers
@@ -194,41 +199,56 @@ class PrinterDiscovery(private val context: Context) {
      * Escanea un rango de IPs buscando impresoras en el puerto 9100. Llama a este método en un
      * thread separado — puede tomar ~25 s para /24. Puedes reducir el rango para acelerar.
      */
-    // fun scanNetworkPrinters(
-    //     subnet: String? = null,
-    //     start: Int = 1,
-    //     end: Int = 254,
-    //     port: Int = 9100,
-    //     connectTimeoutMs: Int = 200
-    // ): List<ThermalPrinterInfo> {
-    //     val activeSubnet = subnet ?: getLocalSubnet() ?: "192.168.1"
-    //     val printers = mutableListOf<ThermalPrinterInfo>()
-    //     Log.d(TAG, "Network scan: $activeSubnet.$start-$end port $port")
+    fun scanNetworkPrinters(
+        subnet: String? = null,
+        start: Int = 1,
+        end: Int = 254,
+        port: Int = 9100,
+        connectTimeoutMs: Int = 200
+    ): List<ThermalPrinterInfo> {
+        val activeSubnet = subnet ?: getLocalSubnet() ?: "192.168.1"
+        val printers = mutableListOf<ThermalPrinterInfo>()
+        Log.d(TAG, "Network scan: $activeSubnet.$start-$end port $port")
 
-    //     for (i in start..end) {
-    //         val ip = "$activeSubnet.$i"
-    //         try {
-    //             Socket().use { socket ->
-    //                 socket.connect(InetSocketAddress(ip, port), connectTimeoutMs)
-    //                 // Si no lanza excepción, el puerto está abierto → impresora de red
-    //                 Log.d(TAG, "Network printer found at $ip:$port")
-    //                 printers.add(
-    //                     ThermalPrinterInfo(
-    //                         name          = "Network Printer @ $ip",
-    //                         interfaceType = "Network",
-    //                         identifier    = "$ip:$port",
-    //                         status        = "Available"
-    //                     )
-    //                 )
-    //             }
-    //         } catch (_: Exception) {
-    //             // Host no alcanzable o puerto cerrado — ignorar
-    //         }
-    //     }
+        val executor = Executors.newFixedThreadPool(50) // Escaneo paralelo
+        val futures = mutableListOf<Future<ThermalPrinterInfo?>>()
 
-    //     Log.d(TAG, "Network scan finished. Found ${printers.size} printer(s)")
-    //     return printers
-    // }
+        for (i in start..end) {
+            val ip = "$activeSubnet.$i"
+            futures.add(executor.submit(Callable {
+                try {
+                    Socket().use { socket ->
+                        socket.connect(InetSocketAddress(ip, port), connectTimeoutMs)
+                        Log.d(TAG, "Network printer found at $ip:$port")
+                        ThermalPrinterInfo(
+                            name          = "Network Printer @ $ip",
+                            interfaceType = "Network",
+                            identifier    = "$ip:$port",
+                            status        = "Available"
+                        )
+                    }
+                } catch (_: Exception) {
+                    null // Host inalcanzable o puerto cerrado
+                }
+            }))
+        }
+
+        executor.shutdown()
+        
+        for (future in futures) {
+            try {
+                val result = future.get()
+                if (result != null) {
+                    printers.add(result)
+                }
+            } catch (e: Exception) {
+                // Ignorar
+            }
+        }
+
+        Log.d(TAG, "Network scan finished. Found ${printers.size} printer(s)")
+        return printers
+    }
 
     private fun getLocalSubnet(): String? {
         try {
