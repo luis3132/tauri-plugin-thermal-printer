@@ -90,7 +90,7 @@ pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u
 #### 4. **OS Integration** (`src/desktop_printers/` and `android/`)
 - **Linux/macOS**: Uses CUPS system (`lpstat`, `lp` commands)
 - **Windows**: Uses WinAPI (Windows API) to directly access system printers via functions such as EnumPrintersW for listing printers, OpenPrinterW for opening printer handles, and WritePrinter for sending raw data
-- **Android**: Kotlin plugin with Bluetooth SPP and USB printer discovery and printing
+- **Android**: Kotlin plugin with Bluetooth SPP, USB, and Network (TCP/IP) printer discovery and printing
 
 ### Workflow
 
@@ -106,8 +106,8 @@ pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u
 
 1. **Frontend** sends `PrintJobRequest` with sections and configuration
 2. **Rust** generates ESC/POS binary data using the same `ProcessPrint` pipeline
-3. **Kotlin plugin** receives the binary data and the printer MAC address
-4. **Bluetooth SPP** connection is established to the printer
+3. **Kotlin plugin** receives the binary data and the printer identifier (MAC, USB VID:PID, or IP:PORT)
+4. Connection is established via **Bluetooth SPP**, **USB Bulk Transfer**, or **TCP Socket**
 5. **Thermal Printer** interprets ESC/POS commands and prints
 
 #### Print Structure Example:
@@ -150,18 +150,18 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 - ✅ **Linux**: Fully functional (CUPS)
 - ✅ **macOS**: Fully functional (CUPS)
 - ✅ **Windows**: Fully functional (WinAPI)
-- ✅ **Android**: Bluetooth and USB printer discovery and printing
+- ✅ **Android**: Bluetooth, USB, and Network printer discovery and printing
 - ❌ **iOS**: Not implemented
 
 ### Supported Connections
 
 | Connection | Linux | macOS | Windows | Android |
 | ---------- | ----- | ----- | ------- | ------- |
-| USB        | ✅    | ✅    | ✅      | ✅ (discovery only) |
-| Network    | ✅    | ✅    | ✅      | ❌      |
+| USB        | ✅    | ✅    | ✅      | ✅      |
+| Network    | ✅    | ✅    | ✅      | ✅      |
 | Bluetooth  | ❌    | ❌    | ❌      | ✅      |
 
-> **Android note**: The `printer` field in `PrintJobRequest` must be the Bluetooth MAC address of the printer (e.g. `"AA:BB:CC:DD:EE:FF"`). The printer must be previously paired in the Android Bluetooth settings. Bluetooth permissions are requested automatically at runtime.
+> **Android note**: The `printer` field in `PrintJobRequest` must be the printer identifier returned by `list_thermal_printers`. For Bluetooth, it's the MAC address (e.g. `"AA:BB:CC:DD:EE:FF"`). For USB, it's `"VID:xxxx/PID:yyyy"`. For Network, it's `"IP:PORT"` (e.g. `"192.168.1.100:9100"`). Required permissions (Bluetooth, USB, Internet) are handled automatically at runtime.
 
 ## Installation
 
