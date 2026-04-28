@@ -11,14 +11,7 @@ use crate::commands_esc_pos::text::text_type::{
     get_styles_diff, process_line, process_subtitle, process_text, process_title,
 };
 use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{Beep, Cut, Drawer, GlobalStyles, PrintSections};
-
-const AUTO_BEEP_TIMES: u8 = 1;
-const AUTO_BEEP_DURATION: u8 = 3;
-const AUTO_CUT_FEED: u8 = 0;
-const AUTO_CUT_MODE: &str = "partial";
-const AUTO_DRAWER_PIN: u8 = 2;
-const AUTO_DRAWER_PULSE_TIME: u16 = 100;
+use crate::models::print_sections::{GlobalStyles, PrintSections};
 
 pub struct ProcessPrint {
     current_styles: GlobalStyles,
@@ -47,14 +40,13 @@ impl ProcessPrint {
         }
 
         self.print_job_context = print_job.clone();
-        let encoder = TextEncoder::from_code_page(&print_job.options.code_page);
-        let effective_sections = self.build_effective_sections(print_job);
+        let encoder = TextEncoder::from_code_page(&print_job.options);
 
         let mut document: Vec<u8> = Vec::new();
         document.extend(PrinterControl::initialize());
-        document.extend(print_job.options.code_page.escpos_command());
+        document.extend(print_job.options.escpos_command());
 
-        for section in &effective_sections {
+        for section in &print_job.sections {
             let section_data = self.process_print_section(section, &encoder)?;
             document.extend(section_data);
         }
@@ -62,30 +54,7 @@ impl ProcessPrint {
         Ok(document)
     }
 
-    fn build_effective_sections(&self, print_job: &PrintJobRequest) -> Vec<PrintSections> {
-        let mut sections = print_job.sections.clone();
 
-        if print_job.options.beep {
-            sections.push(PrintSections::Beep(Beep {
-                times: AUTO_BEEP_TIMES,
-                duration: AUTO_BEEP_DURATION,
-            }));
-        }
-        if print_job.options.cut_paper {
-            sections.push(PrintSections::Cut(Cut {
-                mode: AUTO_CUT_MODE.to_string(),
-                feed: AUTO_CUT_FEED,
-            }));
-        }
-        if print_job.options.open_cash_drawer {
-            sections.push(PrintSections::Drawer(Drawer {
-                pin: AUTO_DRAWER_PIN,
-                pulse_time: AUTO_DRAWER_PULSE_TIME,
-            }));
-        }
-
-        sections
-    }
 
     fn process_print_section(
         &mut self,

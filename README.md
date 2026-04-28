@@ -1,5 +1,8 @@
 # Tauri Plugin thermal-printer
 
+> **BREAKING CHANGES:** The 1.4.0 and newer versions **removed** the `PrinterOptions` interface to simplify configuration. The `options` field in `PrintJobRequest` now directly accepts a `CodePage` object. 
+> The shorthand options (`cut_paper`, `beep`, and `open_cash_drawer`) have been **removed**. If you need these actions, explicitly append them as sections (e.g., `{"Cut": {"mode": "partial", "feed": 0}}`) at the end of your `sections` array.
+
 This plugin provides thermal printer functionality for Tauri applications, allowing you to print documents, test printers, and list available printers.
 
 | Platform | Supported |
@@ -116,8 +119,8 @@ pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false
+    "code_page": 6,
+    "encode": "WINDOWS_1252"
   },
   "sections": [
     {"Title": {"text": "My Title"}},
@@ -281,14 +284,9 @@ try { await test_thermal_printer({
     "printer": "TM-T20II",
     "paper_size": "Mm80",
     "options": {
-      "cut_paper": true,
-      "beep": true,
-      "open_cash_drawer": false,
-      "code_page": {
-        "code_page": 6,
-        "encode": ENCODE.WINDOWS_1252,
-        "use_gbk": false
-      }
+      "code_page": 6,
+      "encode": ENCODE.WINDOWS_1252,
+      "use_gbk": false
     },
     "sections": [] // it's not going to print anything
   },
@@ -352,14 +350,9 @@ try { await print_thermal_printer({
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false,
-    "code_page": {
-      "code_page": 6,
-      "encode": ENCODE.WINDOWS_1252,
-      "use_gbk": false
-    }
+    "code_page": 6,
+    "encode": ENCODE.WINDOWS_1252,
+    "use_gbk": false
   },
   "sections": [
     {"Title": {"text": "My Business"}},
@@ -390,14 +383,8 @@ Returns `Promise<void>`. Resolves when printing completes successfully. **Throws
 |-----------|------|----------|-------------|
 | `printer` | string | ✅ Yes | Printer name |
 | `paper_size` | PaperSize | ❌ No | Paper size (default: `"Mm80"`) — see [Paper Sizes](#paper-sizes) |
-| `options` | PrinterOptions | ❌ No | Configuration options |
-| `options.cut_paper` | boolean | ❌ No | Append a tail `Cut` section equivalent to `{ "Cut": { "mode": "partial", "feed": 0 } }` (default: `true`) |
-| `options.beep` | boolean | ❌ No | Append a tail `Beep` section equivalent to `{ "Beep": { "times": 1, "duration": 3 } }` (default: `false`) |
-| `options.open_cash_drawer` | boolean | ❌ No | Append a tail `Drawer` section equivalent to `{ "Drawer": { "pin": 2, "pulse_time": 100 } }` (default: `false`) |
-| `options.code_page` | CodePage | ✅ Yes | Required ESC/POS page selection plus host-side encoding strategy — see [CodePage](#codepage) |
+| `options` | CodePage | ✅ Yes | Required ESC/POS page selection plus host-side encoding strategy — see [CodePage](#codepage) |
 | `sections` | array | ✅ Yes | Array of sections to print (see [Section Types](#section-types)) |
-
-`options.cut_paper`, `options.beep`, and `options.open_cash_drawer` are tail-action shorthands. They append sections at the end of the document in this fixed order: `Beep` → `Cut` → `Drawer`. They do **not** disable or replace manually declared sections, so if you specify both, both actions are emitted.
 
 #### Paper Sizes
 
@@ -899,14 +886,9 @@ Each printer model assigns its own `ESC t n` values, so `CodePage.code_page` acc
 import { ENCODE, type CodePage } from "tauri-plugin-thermal-printer";
 
 const options = {
-  cut_paper: true,
-  beep: false,
-  open_cash_drawer: false,
-  code_page: {
-    code_page: 6,
-    encode: ENCODE.WINDOWS_1252,
-    use_gbk: false,
-  }, // sends ESC t 6
+  code_page: 6,
+  encode: ENCODE.WINDOWS_1252,
+  use_gbk: false,
 };
 ```
 
@@ -1070,14 +1052,9 @@ const job: PrintJobRequest = {
   printer: "TM-T20II",
   paper_size: "Mm80",
   options: {
-    cut_paper: true,
-    beep: false,
-    open_cash_drawer: false,
-    code_page: {
-      code_page: 6,
-      encode: ENCODE.WINDOWS_1252,
-      use_gbk: false,
-    },
+    code_page: 0,
+    encode: ENCODE.ACCENT_REMOVER,
+    use_gbk: false,
   },
   sections: [
     globalStyles({ align: TEXT_ALIGN.LEFT }),
@@ -1157,9 +1134,9 @@ const receipt: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "SUPERMERCADO LA ECONOMÍA", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1279,9 +1256,9 @@ const restaurantTicket: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "RESTAURANTE EL BUEN SABOR", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1366,9 +1343,9 @@ const kitchenOrder: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": true,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "*** COMANDA COCINA ***", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1404,9 +1381,9 @@ const productLabel: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm58",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "PRODUCTO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1432,9 +1409,9 @@ const turnTicket: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm58",
   "options": {
-    "cut_paper": true,
-    "beep": true,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "TICKET DE TURNO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1465,9 +1442,9 @@ const parkingTicket: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "ESTACIONAMIENTO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1502,9 +1479,9 @@ const eventTicket: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "CONCIERTO 2025", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
@@ -1561,9 +1538,9 @@ const paymentReceipt: PrintJobRequest = {
   "printer": "TM-T20II",
   "paper_size": "Mm80",
   "options": {
-    "cut_paper": true,
-    "beep": false,
-    "open_cash_drawer": false
+    "code_page": 0,
+    "encode": ENCODE.ACCENT_REMOVER,
+    "use_gbk": false,
   },
   "sections": [
     {"Title": {"text": "COMPROBANTE DE PAGO", "styles": {"bold": true, "underline": false, "align": "center", "italic": false, "invert": false, "font": "A", "rotate": false, "upside_down": false, "size": "Double"}}},
