@@ -46,7 +46,7 @@ export function getPaperSizePixelsWidth(paperSize: PaperSize): number {
 /**
  * ESC/POS page selection plus explicit host-side encoding behavior.
  *
- * - `codepage` controls the `ESC t n` command sent to the printer.
+ * - `code_page` controls the `ESC t n` command sent to the printer. Default is 0.
  * - `encode` selects the host-side encoding and defaults to
  *   `ENCODE.ACCENT_REMOVER`.
  * - `use_gbk` controls whether unmapped non-ASCII characters may fall back
@@ -161,16 +161,7 @@ export const CUT_MODE = {
 
 // ─── Core interfaces ──────────────────────────────────────────────────────────
 
-export interface PrinterOptions {
-  /** Append a tail `Cut` section with mode `"partial"` and feed `0`. */
-  cut_paper: boolean
-  /** Append a tail `Beep` section with times `1` and duration `3`. */
-  beep: boolean
-  /** Append a tail `Drawer` section with pin `2` and pulse time `100`. */
-  open_cash_drawer: boolean
-  /** Required ESC/POS page plus host-side encoding strategy. */
-  code_page: CodePage
-}
+
 
 export interface GlobalStyles {
   bold?: boolean
@@ -317,7 +308,7 @@ export type PrintSections =
 export interface PrintJobRequest {
   printer: string
   sections: PrintSections[]
-  options: PrinterOptions
+  options: CodePage
   paper_size: PaperSize
 }
 

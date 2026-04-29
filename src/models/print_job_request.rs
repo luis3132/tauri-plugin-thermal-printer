@@ -1,6 +1,6 @@
 use crate::models::paper_size::PaperSize;
 use crate::models::print_sections::PrintSections;
-use crate::models::printer_options::PrinterOptions;
+use crate::commands_esc_pos::text::code_page::CodePage;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -8,7 +8,7 @@ pub struct PrintJobRequest {
     /// Printer name (for system printing) or connection configuration
     pub printer: String,
     pub sections: Vec<PrintSections>,
-    pub options: PrinterOptions,
+    pub options: CodePage,
     pub paper_size: PaperSize,
 }
 

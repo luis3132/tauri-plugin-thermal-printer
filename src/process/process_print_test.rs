@@ -54,11 +54,11 @@ impl TestPrinter {
         let mut document: Vec<u8> = Vec::new();
 
         self.print_job_context = request.clone();
-        let encoder = TextEncoder::from_code_page(&request.printer_info.options.code_page);
+        let encoder = TextEncoder::from_code_page(&request.printer_info.options);
 
         // Inicializar impresora y seleccionar página de código
         document.extend(PrinterControl::initialize());
-        document.extend(request.printer_info.options.code_page.escpos_command());
+        document.extend(request.printer_info.options.escpos_command());
         document.extend(PrinterControl::line_feed());
 
         // ==================== ENCABEZADO ====================
