@@ -25,10 +25,11 @@ pub fn get_printers_info() -> Result<Vec<PrinterInfo>> {
         .filter_map(|(name, status)| {
             devices
                 .get(&name)
-                .map(|(interface_type, identifier)| PrinterInfo {
-                    name,
+                .map(|(interface_type, _identifier)| PrinterInfo {
+                    name: name.clone(),
                     interface_type: interface_type.clone(),
-                    identifier: identifier.clone(),
+                    // SUR LINUX: L'identifier DOIT être le nom pour la commande 'lp -d'
+                    identifier: name.clone(),
                     status,
                 })
         })
@@ -42,7 +43,6 @@ fn get_printer_statuses() -> Result<HashMap<String, String>> {
 
     let statuses = stdout
         .lines()
-        .filter(|line| line.starts_with("printer "))
         .filter_map(parse_printer_status)
         .collect();
 
@@ -54,7 +54,6 @@ fn get_printer_devices() -> Result<HashMap<String, (String, String)>> {
 
     let devices = stdout
         .lines()
-        .filter(|line| line.starts_with("device for "))
         .filter_map(parse_device_line)
         .collect();
 
@@ -62,14 +61,22 @@ fn get_printer_devices() -> Result<HashMap<String, (String, String)>> {
 }
 
 fn parse_printer_status(line: &str) -> Option<(String, String)> {
-    // "printer <name> is idle/printing/disabled ..."
-    let rest = line.strip_prefix("printer ")?;
-    let (name, status_part) = rest.split_once(" is ")?;
+    let (name, status_part) = if line.contains(" is ") {
+        let parts: Vec<&str> = line.split(" is ").collect();
+        let name = parts[0].split_whitespace().last()?;
+        (name, parts[1])
+    } else if line.contains(" est ") {
+        let parts: Vec<&str> = line.split(" est ").collect();
+        let name = parts[0].split_whitespace().last()?;
+        (name, parts[1])
+    } else {
+        return None;
+    };
 
     let status = match () {
-        _ if status_part.contains("idle") => "idle",
-        _ if status_part.contains("printing") => "printing",
-        _ if status_part.contains("disabled") => "disabled",
+        _ if status_part.contains("idle") || status_part.contains("libre") => "idle",
+        _ if status_part.contains("printing") || status_part.contains("occupé") => "printing",
+        _ if status_part.contains("disabled") || status_part.contains("désactivé") => "disabled",
         _ => "unknown",
     };
 
@@ -77,10 +84,10 @@ fn parse_printer_status(line: &str) -> Option<(String, String)> {
 }
 
 fn parse_device_line(line: &str) -> Option<(String, (String, String))> {
-    // "device for <name>: <interface>:<identifier>"
-    let rest = line.strip_prefix("device for ")?;
-    let (name, device) = rest.split_once(": ")?;
-    let (interface_type, identifier) = device.split_once(':')?;
+    let separator = if line.contains(" : ") { " : " } else { ": " };
+    let (prefix_and_name, uri) = line.split_once(separator)?;
+    let name = prefix_and_name.split_whitespace().last()?;
+    let (interface_type, identifier) = uri.split_once(':').unwrap_or(("unknown", uri));
 
     Some((
         name.trim().to_string(),
