@@ -28,7 +28,6 @@ pub fn get_printers_info() -> Result<Vec<PrinterInfo>> {
                 .map(|(interface_type, _identifier)| PrinterInfo {
                     name: name.clone(),
                     interface_type: interface_type.clone(),
-                    // SUR LINUX: L'identifier DOIT être le nom pour la commande 'lp -d'
                     identifier: name.clone(),
                     status,
                 })
@@ -43,7 +42,22 @@ fn get_printer_statuses() -> Result<HashMap<String, String>> {
 
     let statuses = stdout
         .lines()
-        .filter_map(parse_printer_status)
+        .filter_map(|line| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            if words.len() < 3 { return None; }
+            
+            let name = words[1].to_string();
+            let status_word = words[2].to_lowercase();
+            
+            let status = match () {
+                _ if status_word.contains("idle") || status_word.contains("libre") || status_word.contains("attente") => "idle",
+                _ if status_word.contains("print") || status_word.contains("occup") || status_word.contains("activ") => "printing",
+                _ if status_word.contains("disab") || status_word.contains("stopp") || status_word.contains("désact") => "disabled",
+                _ => "unknown",
+            };
+            
+            Some((name, status.to_string()))
+        })
         .collect();
 
     Ok(statuses)
@@ -54,48 +68,26 @@ fn get_printer_devices() -> Result<HashMap<String, (String, String)>> {
 
     let devices = stdout
         .lines()
-        .filter_map(parse_device_line)
+        .filter_map(|line| {
+            let separator = if line.contains(" : ") { " : " } else { ":" };
+            let parts: Vec<&str> = line.split(separator).collect();
+            if parts.len() < 2 { return None; }
+            
+            let prefix_part = parts[0].trim();
+            let uri_part = parts[1].trim();
+            
+            let name = prefix_part.split_whitespace().last()?.to_string();
+            
+            let interface_type = uri_part.split_once("://")
+                .map(|(proto, _)| proto)
+                .unwrap_or("unknown")
+                .to_string();
+
+            Some((name, (interface_type, uri_part.to_string())))
+        })
         .collect();
 
     Ok(devices)
-}
-
-fn parse_printer_status(line: &str) -> Option<(String, String)> {
-    let (name, status_part) = if line.contains(" is ") {
-        let parts: Vec<&str> = line.split(" is ").collect();
-        let name = parts[0].split_whitespace().last()?;
-        (name, parts[1])
-    } else if line.contains(" est ") {
-        let parts: Vec<&str> = line.split(" est ").collect();
-        let name = parts[0].split_whitespace().last()?;
-        (name, parts[1])
-    } else {
-        return None;
-    };
-
-    let status = match () {
-        _ if status_part.contains("idle") || status_part.contains("libre") => "idle",
-        _ if status_part.contains("printing") || status_part.contains("occupé") => "printing",
-        _ if status_part.contains("disabled") || status_part.contains("désactivé") => "disabled",
-        _ => "unknown",
-    };
-
-    Some((name.trim().to_string(), status.to_string()))
-}
-
-fn parse_device_line(line: &str) -> Option<(String, (String, String))> {
-    let separator = if line.contains(" : ") { " : " } else { ": " };
-    let (prefix_and_name, uri) = line.split_once(separator)?;
-    let name = prefix_and_name.split_whitespace().last()?;
-    let (interface_type, identifier) = uri.split_once(':').unwrap_or(("unknown", uri));
-
-    Some((
-        name.trim().to_string(),
-        (
-            interface_type.trim().to_string(),
-            identifier.trim().to_string(),
-        ),
-    ))
 }
 
 pub fn print_raw_data(printer_name: &str, data: &[u8]) -> std::io::Result<()> {
