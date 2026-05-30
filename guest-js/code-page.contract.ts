@@ -14,12 +14,7 @@ const configuredCodePage: CodePage = {
 const request: PrintJobRequest = {
   printer: 'Printer',
   paper_size: 'Mm58',
-  options: {
-    cut_paper: false,
-    beep: false,
-    open_cash_drawer: false,
-    code_page: configuredCodePage,
-  },
+  options: configuredCodePage,
   sections: [text('hola')],
 }
 
