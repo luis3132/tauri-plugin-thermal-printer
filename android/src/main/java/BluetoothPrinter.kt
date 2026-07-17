@@ -2,6 +2,7 @@ package com.luis3132.thermal_printer
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
@@ -9,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import java.io.IOException
 import java.util.UUID
 
 class BluetoothPrinter(private val context: Context) {
@@ -46,18 +48,46 @@ class BluetoothPrinter(private val context: Context) {
 
         Log.d(TAG, "Connecting to $macAddress (${data.size} bytes)")
         val device = adapter.getRemoteDevice(macAddress)
+        // Discovery slows down / breaks an active RFCOMM connection.
         adapter.cancelDiscovery()
 
-        var socket: BluetoothSocket? = null
+        val socket = connectSocket(device)
         try {
-            socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            socket.connect()
             Log.d(TAG, "Connected, sending ${data.size} bytes")
             socket.outputStream.write(data)
             socket.outputStream.flush()
             Log.d(TAG, "Print complete")
         } finally {
-            try { socket?.close() } catch (_: Exception) {}
+            try { socket.close() } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Opens an RFCOMM socket. Tries the standard secure SPP socket first and, if that
+     * fails (common on cheap POS printers with a non-standard SDP record), falls back to
+     * the well-known reflection-based `createRfcommSocket(1)` workaround.
+     */
+    private fun connectSocket(device: BluetoothDevice): BluetoothSocket {
+        try {
+            val socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
+            socket.connect()
+            return socket
+        } catch (primary: IOException) {
+            Log.w(TAG, "Standard RFCOMM connect failed, trying reflection fallback: ${primary.message}")
+            try {
+                val method = device.javaClass.getMethod(
+                    "createRfcommSocket",
+                    Int::class.javaPrimitiveType
+                )
+                val socket = method.invoke(device, 1) as BluetoothSocket
+                socket.connect()
+                return socket
+            } catch (fallback: Exception) {
+                throw IOException(
+                    "Bluetooth connection failed " +
+                        "(standard: ${primary.message}; fallback: ${fallback.message})"
+                )
+            }
         }
     }
 }

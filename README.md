@@ -108,10 +108,12 @@ pub fn generate_document(&mut self, print_job: &PrintJobRequest) -> Result<Vec<u
 #### Printing a Document (Android):
 
 1. **Frontend** sends `PrintJobRequest` with sections and configuration
-2. **Rust** generates ESC/POS binary data using the same `ProcessPrint` pipeline
-3. **Kotlin plugin** receives the binary data and the printer MAC address
-4. **Bluetooth SPP** connection is established to the printer
-5. **Thermal Printer** interprets ESC/POS commands and prints
+2. **Rust** generates ESC/POS binary data using the same `ProcessPrint` pipeline and sends it Base64-encoded to the Kotlin plugin
+3. **Kotlin plugin** decodes the payload and routes by the `identifier` format:
+   - MAC address → **Bluetooth SPP / RFCOMM** (with reflection fallback for cheap POS printers)
+   - `VID:/PID:` → **USB** (`bulkTransfer`, runtime permission dialog)
+   - `host:port` → **Network** (RAW/JetDirect TCP socket, port 9100)
+4. **Thermal Printer** interprets ESC/POS commands and prints
 
 #### Print Structure Example:
 ```json
@@ -153,18 +155,24 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 - ✅ **Linux**: Fully functional (CUPS)
 - ✅ **macOS**: Fully functional (CUPS)
 - ✅ **Windows**: Fully functional (WinAPI)
-- ✅ **Android**: Bluetooth and USB printer discovery and printing
+- ✅ **Android**: Bluetooth, USB and Network (WiFi) printer discovery and printing
 - ❌ **iOS**: Not implemented
 
 ### Supported Connections
 
 | Connection | Linux | macOS | Windows | Android |
 | ---------- | ----- | ----- | ------- | ------- |
-| USB        | ✅    | ✅    | ✅      | ✅ (discovery only) |
-| Network    | ✅    | ✅    | ✅      | ❌      |
+| USB        | ✅    | ✅    | ✅      | ✅      |
+| Network    | ✅    | ✅    | ✅      | ✅      |
 | Bluetooth  | ❌    | ❌    | ❌      | ✅      |
 
-> **Android note**: The `printer` field in `PrintJobRequest` must be the Bluetooth MAC address of the printer (e.g. `"AA:BB:CC:DD:EE:FF"`). The printer must be previously paired in the Android Bluetooth settings. Bluetooth permissions are requested automatically at runtime.
+> **Android note**: The plugin auto-routes by the format of the `printer` field in `PrintJobRequest`, so use the exact `identifier` returned by `list_thermal_printers`:
+>
+> | Connection | `printer` / `identifier` format | Discovery | Notes |
+> | ---------- | ------------------------------- | --------- | ----- |
+> | Bluetooth  | MAC address `"AA:BB:CC:DD:EE:FF"` | Paired (bonded) devices | Printer must be paired in Android Bluetooth settings first. Runtime permission requested automatically (Android 12+). |
+> | USB        | `"VID:<vendorId>/PID:<productId>"` (decimal) | Connected USB-host / OTG devices | The system shows a one-time USB permission dialog on first print (unavoidable Android security step). |
+> | Network    | `"<host>:<port>"` (e.g. `"192.168.1.100:9100"`) | Automatic via **NSD / mDNS** (`_pdl-datastream._tcp`, `_printer._tcp`, `_ipp._tcp`) | Prints over a RAW/JetDirect TCP socket (port 9100). Phone and printer must be on the same network. No IP configuration or subnet scan required. |
 
 ## Installation
 

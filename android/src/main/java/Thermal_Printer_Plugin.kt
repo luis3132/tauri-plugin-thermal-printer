@@ -1,6 +1,7 @@
 package com.luis3132.thermal_printer
 
 import android.app.Activity
+import android.util.Base64
 import android.util.Log
 import app.tauri.PermissionState
 import app.tauri.annotation.Command
@@ -12,19 +13,17 @@ import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import android.Manifest
-import org.json.JSONArray
-import org.json.JSONException
+import android.os.Build
 
 @TauriPlugin(
     permissions = [
+        // Solo runtime permissions realmente necesarios para leer dispositivos
+        // emparejados y conectar. La ubicación NO se pide: solo leemos bondedDevices,
+        // que no la requiere. USB y red no necesitan permisos runtime aquí.
         Permission(
             strings = [
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.BLUETOOTH_ADMIN,
-                Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.BLUETOOTH_SCAN
             ],
             alias = "bluetooth"
         )
@@ -34,6 +33,18 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
 
     private val TAG = "ThermalPrinterPlugin"
 
+    // Formatos de identificador: MAC (Bluetooth), "VID:.../PID:..." (USB), "host:port" (Red).
+    private val macRegex = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+    private val networkRegex = Regex("^\\d{1,3}(\\.\\d{1,3}){3}:\\d+$")
+
+    private fun isBluetoothIdentifier(identifier: String) = macRegex.matches(identifier)
+
+    // BLUETOOTH_CONNECT/SCAN solo son permisos runtime en Android 12+ (API 31).
+    // En versiones anteriores el Bluetooth clásico se concede en tiempo de instalación.
+    private fun needsBluetoothRuntimePermission() =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            getPermissionState("bluetooth") != PermissionState.GRANTED
+
     // ─────────────────────────────────────────────────────────────
     // list_thermal_printers
     // ─────────────────────────────────────────────────────────────
@@ -41,7 +52,7 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
     @Command
     fun list_thermal_printers(invoke: Invoke) {
         Log.d(TAG, "list_thermal_printers called")
-        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+        if (needsBluetoothRuntimePermission()) {
             Log.d(TAG, "Requesting bluetooth permissions")
             requestPermissionForAlias("bluetooth", invoke, "bluetoothListPermissionCallback")
             return
@@ -51,10 +62,10 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
 
     @PermissionCallback
     fun bluetoothListPermissionCallback(invoke: Invoke) {
+        // Se procede aunque el Bluetooth se haya denegado: USB y red siguen funcionando,
+        // y el descubrimiento Bluetooth verifica el permiso por su cuenta.
         if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
-            Log.w(TAG, "Bluetooth permission denied")
-            invoke.reject("Bluetooth permission denied")
-            return
+            Log.w(TAG, "Bluetooth permission denied — listing USB/Network only")
         }
         doListPrinters(invoke)
     }
@@ -92,13 +103,24 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
     }
 
     // ─────────────────────────────────────────────────────────────
-    // print_raw_data
+    // print_raw_data — enruta por tipo de conexión
     // ─────────────────────────────────────────────────────────────
 
     @Command
     fun print_raw_data(invoke: Invoke) {
         Log.d(TAG, "print_raw_data called")
-        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+
+        val identifier = try {
+            invoke.getArgs().getString("identifier", null)
+        } catch (e: Exception) {
+            null
+        }
+
+        // Solo la ruta Bluetooth necesita permiso runtime; USB usa su propio diálogo
+        // y la red no necesita ninguno.
+        if (identifier != null && isBluetoothIdentifier(identifier) &&
+            needsBluetoothRuntimePermission()
+        ) {
             Log.d(TAG, "Requesting bluetooth permissions for printing")
             requestPermissionForAlias("bluetooth", invoke, "bluetoothPrintPermissionCallback")
             return
@@ -124,18 +146,32 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
                 val identifier = args.getString("identifier", null)
                     ?: return@Thread invoke.reject("Missing printer identifier")
 
-                val dataArray: JSONArray = try {
-                    args.getJSONArray("data")
-                } catch (e: JSONException) {
-                    return@Thread invoke.reject("Missing print data")
-                }
+                val dataB64 = args.getString("data", null)
+                    ?: return@Thread invoke.reject("Missing print data")
 
-                val bytes = ByteArray(dataArray.length()) { i -> dataArray.getInt(i).toByte() }
+                val bytes = try {
+                    Base64.decode(dataB64, Base64.DEFAULT)
+                } catch (e: IllegalArgumentException) {
+                    return@Thread invoke.reject("Invalid print data encoding")
+                }
 
                 Log.d(TAG, "Printing to $identifier (${bytes.size} bytes)")
 
-                val printer = BluetoothPrinter(activity.applicationContext)
-                printer.printRawData(identifier, bytes)
+                val context = activity.applicationContext
+                when {
+                    identifier.startsWith("VID:") -> {
+                        UsbPrinter(context).printRawData(identifier, bytes)
+                    }
+                    networkRegex.matches(identifier) -> {
+                        NetworkPrinter().printRawData(identifier, bytes)
+                    }
+                    macRegex.matches(identifier) -> {
+                        BluetoothPrinter(context).printRawData(identifier, bytes)
+                    }
+                    else -> {
+                        return@Thread invoke.reject("Unrecognized printer identifier: $identifier")
+                    }
+                }
 
                 invoke.resolve()
 
