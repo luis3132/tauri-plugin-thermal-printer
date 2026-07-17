@@ -1,15 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" /> <!-- para Android 12+ -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />    <!-- para Android 12+ -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- para Bluetooth en versiones antiguas -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.USB_PERMISSION" />
+    <!-- Bluetooth clásico en versiones antiguas (install-time, ≤ Android 11) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+    <!-- Bluetooth en Android 12+ (runtime). neverForLocation: no derivamos ubicación. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <!-- Ubicación: solo la exigían APIs antiguas para el descubrimiento clásico.
+         Solo leemos bondedDevices, así que la limitamos a ≤ Android 11. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+
+    <!-- Red / WiFi (impresión por socket y descubrimiento NSD/mDNS) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-<!-- Para Android 11+ -->
-<uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- Features opcionales para no bloquear la instalación en dispositivos sin ellas -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 </manifest>

@@ -8,11 +8,13 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
-import java.net.NetworkInterface
-import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Información de una impresora descubierta. Los nombres de campo deben coincidir con el struct
@@ -55,8 +57,7 @@ class PrinterDiscovery(private val context: Context) {
 
         safeDiscover("Bluetooth") { discoverBluetoothPrinters() }.let { printers.addAll(it) }
 
-        // Descomentar para incluir escaneo de red (lento ~25 segundos)
-        // safeDiscover("Network") { scanNetworkPrinters() }.let { printers.addAll(it) }
+        safeDiscover("Network") { discoverNetworkPrinters() }.let { printers.addAll(it) }
 
         Log.d(TAG, "Total printers found: ${printers.size}")
         return printers
@@ -187,75 +188,114 @@ class PrinterDiscovery(private val context: Context) {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Red / Network (puerto ESC/POS estándar 9100)
+    // Red / Network — descubrimiento automático vía NSD (mDNS/DNS-SD)
     // ─────────────────────────────────────────────────────────────
 
     /**
-     * Escanea un rango de IPs buscando impresoras en el puerto 9100. Llama a este método en un
-     * thread separado — puede tomar ~25 s para /24. Puedes reducir el rango para acelerar.
+     * Descubre impresoras de red anunciadas por mDNS/Bonjour sin escanear la subred.
+     * Prioriza `_pdl-datastream._tcp` (RAW/JetDirect, el que entiende ESC/POS por socket).
+     * Es sincrónico (bloquea con latches) porque se invoca desde un Thread de fondo.
      */
-    // fun scanNetworkPrinters(
-    //     subnet: String? = null,
-    //     start: Int = 1,
-    //     end: Int = 254,
-    //     port: Int = 9100,
-    //     connectTimeoutMs: Int = 200
-    // ): List<ThermalPrinterInfo> {
-    //     val activeSubnet = subnet ?: getLocalSubnet() ?: "192.168.1"
-    //     val printers = mutableListOf<ThermalPrinterInfo>()
-    //     Log.d(TAG, "Network scan: $activeSubnet.$start-$end port $port")
-
-    //     for (i in start..end) {
-    //         val ip = "$activeSubnet.$i"
-    //         try {
-    //             Socket().use { socket ->
-    //                 socket.connect(InetSocketAddress(ip, port), connectTimeoutMs)
-    //                 // Si no lanza excepción, el puerto está abierto → impresora de red
-    //                 Log.d(TAG, "Network printer found at $ip:$port")
-    //                 printers.add(
-    //                     ThermalPrinterInfo(
-    //                         name          = "Network Printer @ $ip",
-    //                         interfaceType = "Network",
-    //                         identifier    = "$ip:$port",
-    //                         status        = "Available"
-    //                     )
-    //                 )
-    //             }
-    //         } catch (_: Exception) {
-    //             // Host no alcanzable o puerto cerrado — ignorar
-    //         }
-    //     }
-
-    //     Log.d(TAG, "Network scan finished. Found ${printers.size} printer(s)")
-    //     return printers
-    // }
-
-    private fun getLocalSubnet(): String? {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            for (intf in Collections.list(interfaces)) {
-                for (addr in Collections.list(intf.inetAddresses)) {
-                    if (!addr.isLoopbackAddress && !addr.isLinkLocalAddress) {
-                        val sAddr = addr.hostAddress
-                        // Ignorar IPv6 (que contienen ':')
-                        if (sAddr != null && sAddr.indexOf(':') < 0) {
-                            Log.d(TAG, "Local IP detected: $sAddr")
-                            val lastDot = sAddr.lastIndexOf('.')
-                            if (lastDot > 0) {
-                                return sAddr.substring(0, lastDot)
-                            }
-                        }
-                    }
+    private fun discoverNetworkPrinters(): List<ThermalPrinterInfo> {
+        val nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
+                ?: run {
+                    Log.w(TAG, "NSD service not available")
+                    return emptyList()
                 }
+
+        val discovered = java.util.Collections.synchronizedList(mutableListOf<NsdServiceInfo>())
+        val listeners = mutableListOf<NsdManager.DiscoveryListener>()
+
+        for (serviceType in NETWORK_SERVICE_TYPES) {
+            try {
+                val listener = object : NsdManager.DiscoveryListener {
+                    override fun onDiscoveryStarted(type: String) {}
+                    override fun onServiceFound(info: NsdServiceInfo) {
+                        Log.d(TAG, "NSD service found: ${info.serviceName} (${info.serviceType})")
+                        discovered.add(info)
+                    }
+                    override fun onServiceLost(info: NsdServiceInfo) {}
+                    override fun onDiscoveryStopped(type: String) {}
+                    override fun onStartDiscoveryFailed(type: String, code: Int) {
+                        Log.w(TAG, "NSD start failed for $type (code $code)")
+                    }
+                    override fun onStopDiscoveryFailed(type: String, code: Int) {}
+                }
+                nsdManager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener)
+                listeners.add(listener)
+            } catch (e: Exception) {
+                Log.w(TAG, "NSD discovery error for $serviceType: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error discovering local subnet: ${e.message}")
         }
-        return null
+
+        // Ventana de descubrimiento acotada.
+        try { Thread.sleep(DISCOVERY_WINDOW_MS) } catch (_: InterruptedException) {}
+
+        for (listener in listeners) {
+            try { nsdManager.stopServiceDiscovery(listener) } catch (_: Exception) {}
+        }
+
+        // host -> (nombre, puerto). El puerto RAW (9100) tiene prioridad sobre 631/515.
+        val byHost = LinkedHashMap<String, ThermalPrinterInfo>()
+        for (service in discovered.toList()) {
+            val resolved = resolveService(nsdManager, service) ?: continue
+            @Suppress("DEPRECATION")
+            val host = resolved.host?.hostAddress ?: continue
+            val isRaw = service.serviceType.contains("pdl-datastream", ignoreCase = true)
+            val port = if (isRaw && resolved.port > 0) resolved.port else RAW_PRINT_PORT
+            val identifier = "$host:$port"
+
+            val existing = byHost[host]
+            if (existing == null || (isRaw && !existing.identifier.endsWith(":$RAW_PRINT_PORT"))) {
+                byHost[host] = ThermalPrinterInfo(
+                        name = resolved.serviceName?.ifBlank { "Network Printer" }
+                                ?: "Network Printer @ $host",
+                        interfaceType = "Network",
+                        identifier = identifier,
+                        status = "Available"
+                )
+            }
+        }
+
+        return byHost.values.toList()
+    }
+
+    private fun resolveService(
+            nsdManager: NsdManager,
+            service: NsdServiceInfo
+    ): NsdServiceInfo? {
+        val latch = CountDownLatch(1)
+        var result: NsdServiceInfo? = null
+        try {
+            nsdManager.resolveService(service, object : NsdManager.ResolveListener {
+                override fun onResolveFailed(info: NsdServiceInfo, code: Int) {
+                    Log.w(TAG, "NSD resolve failed for ${info.serviceName} (code $code)")
+                    latch.countDown()
+                }
+                override fun onServiceResolved(info: NsdServiceInfo) {
+                    result = info
+                    latch.countDown()
+                }
+            })
+            latch.await(RESOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            // resolveService lanza IllegalArgumentException si ya hay un resolve activo;
+            // los resolvemos en serie, así que esto es defensivo.
+            Log.w(TAG, "NSD resolve error: ${e.message}")
+        }
+        return result
     }
 
     companion object {
         private const val USB_CLASS_PRINTER = 7
         private const val BT_PRINTER_CLASS = 1664 // 0x0680 — Imaging / Printer
+        private const val RAW_PRINT_PORT = 9100
+        private const val DISCOVERY_WINDOW_MS = 3500L
+        private const val RESOLVE_TIMEOUT_SECONDS = 3L
+        private val NETWORK_SERVICE_TYPES = listOf(
+                "_pdl-datastream._tcp.", // RAW / JetDirect (puerto 9100) — ESC/POS
+                "_printer._tcp.",        // LPD
+                "_ipp._tcp."             // IPP
+        )
     }
 }
