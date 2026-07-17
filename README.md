@@ -11,7 +11,7 @@ This plugin provides thermal printer functionality for Tauri applications, allow
 | macOS    | ✅        |
 | Windows  | ✅        |
 | Android  | ?        |
-| iOS      | ❌        |
+| iOS      | ? (Network + BLE) |
 
 ## Table of Contents
 
@@ -156,15 +156,15 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 - ✅ **macOS**: Fully functional (CUPS)
 - ✅ **Windows**: Fully functional (WinAPI)
 - ✅ **Android**: Bluetooth, USB and Network (WiFi) printer discovery and printing
-- ❌ **iOS**: Not implemented
+- ✅ **iOS**: Network (WiFi) and BLE printing/discovery. Bluetooth Classic (SPP) and USB are **not possible** on iOS for third-party apps (Apple restriction — Classic requires MFi certification, USB host is unavailable).
 
 ### Supported Connections
 
-| Connection | Linux | macOS | Windows | Android |
-| ---------- | ----- | ----- | ------- | ------- |
-| USB        | ✅    | ✅    | ✅      | ✅      |
-| Network    | ✅    | ✅    | ✅      | ✅      |
-| Bluetooth  | ❌    | ❌    | ❌      | ✅      |
+| Connection | Linux | macOS | Windows | Android | iOS |
+| ---------- | ----- | ----- | ------- | ------- | --- |
+| USB        | ✅    | ✅    | ✅      | ✅      | ❌  |
+| Network    | ✅    | ✅    | ✅      | ✅      | ✅  |
+| Bluetooth  | ❌    | ❌    | ❌      | ✅ (Classic SPP) | ✅ (BLE only) |
 
 > **Android note**: The plugin auto-routes by the format of the `printer` field in `PrintJobRequest`, so use the exact `identifier` returned by `list_thermal_printers`:
 >
@@ -173,6 +173,28 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 > | Bluetooth  | MAC address `"AA:BB:CC:DD:EE:FF"` | Paired (bonded) devices | Printer must be paired in Android Bluetooth settings first. Runtime permission requested automatically (Android 12+). |
 > | USB        | `"VID:<vendorId>/PID:<productId>"` (decimal) | Connected USB-host / OTG devices | The system shows a one-time USB permission dialog on first print (unavoidable Android security step). |
 > | Network    | `"<host>:<port>"` (e.g. `"192.168.1.100:9100"`) | Automatic via **NSD / mDNS** (`_pdl-datastream._tcp`, `_printer._tcp`, `_ipp._tcp`) | Prints over a RAW/JetDirect TCP socket (port 9100). Phone and printer must be on the same network. No IP configuration or subnet scan required. |
+
+> **iOS note**: Same auto-routing by `identifier`. iOS cannot use Bluetooth Classic (SPP) or USB, so only two transports are available:
+>
+> | Connection | `printer` / `identifier` format | Discovery | Notes |
+> | ---------- | ------------------------------- | --------- | ----- |
+> | Network    | `"<host>:<port>"` (e.g. `"192.168.1.100:9100"`) | Automatic via **Bonjour** (`NetServiceBrowser`, same service types as Android) | RAW/JetDirect TCP socket (port 9100). |
+> | BLE        | `"BLE:<peripheral-uuid>"` (iOS exposes a UUID, never a MAC) | CoreBluetooth scan, printers matched by advertised name | Writes ESC/POS to the first writable characteristic. Only works with BLE-capable printers. |
+>
+> The **host app** (the Tauri app using this plugin) must add these keys to its `Info.plist`, otherwise iOS blocks the features at runtime:
+>
+> ```xml
+> <key>NSBluetoothAlwaysUsageDescription</key>
+> <string>Connect to Bluetooth thermal printers</string>
+> <key>NSLocalNetworkUsageDescription</key>
+> <string>Discover network thermal printers</string>
+> <key>NSBonjourServices</key>
+> <array>
+>   <string>_pdl-datastream._tcp</string>
+>   <string>_printer._tcp</string>
+>   <string>_ipp._tcp</string>
+> </array>
+> ```
 
 ## Installation
 
