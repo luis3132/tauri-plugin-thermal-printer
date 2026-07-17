@@ -12,6 +12,12 @@ use crate::process::process_print_test::TestPrinter;
 
 pub const OS_NAME: &str = std::env::consts::OS;
 
+/// Whether the current mobile target has a native plugin implementation
+/// (Android via Kotlin, iOS via Swift).
+fn is_supported_mobile() -> bool {
+    OS_NAME == "android" || OS_NAME == "ios"
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct PrintersResponse {
     pub printers: Vec<PrinterInfo>,
@@ -46,7 +52,7 @@ pub struct ThermalPrinter<R: Runtime>(PluginHandle<R>);
 
 impl<R: Runtime> ThermalPrinter<R> {
     pub fn list_thermal_printers(&self) -> Result<Vec<PrinterInfo>> {
-        if OS_NAME == "android" {
+        if is_supported_mobile() {
             log::debug!("Listing thermal printers");
             let response: PrintersResponse =
                 self.0.run_mobile_plugin("list_thermal_printers", ())?;
@@ -57,7 +63,7 @@ impl<R: Runtime> ThermalPrinter<R> {
     }
 
     pub fn print_thermal_printer(&self, print_job_request: PrintJobRequest) -> Result<()> {
-        if OS_NAME == "android" {
+        if is_supported_mobile() {
             let identifier = print_job_request.printer.clone();
             let data = ProcessPrint::new()
                 .generate_document(&print_job_request)
@@ -76,7 +82,7 @@ impl<R: Runtime> ThermalPrinter<R> {
     }
 
     pub fn test_thermal_printer(&self, print_job_request: TestPrintRequest) -> Result<()> {
-        if OS_NAME == "android" {
+        if is_supported_mobile() {
             let identifier = print_job_request.printer_info.printer.clone();
             let data = TestPrinter::new()
                 .generate_test_document(&print_job_request)
