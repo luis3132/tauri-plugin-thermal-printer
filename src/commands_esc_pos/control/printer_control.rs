@@ -1,4 +1,7 @@
-use crate::models::print_sections::{Beep, Cut, Drawer, Feed};
+use crate::models::print_sections::{
+    Beep, CharSpacing, Cut, Drawer, Feed, LeftMargin, LineSpacing, Position, PrintAreaWidth,
+    TabStops,
+};
 
 /// ESC/POS GS V mode byte for partial cut (also used as default)
 pub const CUT_MODE_PARTIAL: u8 = 65;
@@ -102,7 +105,7 @@ impl PrinterControl {
         Ok(Self::cut_paper_with_feed(mode, cut.feed))
     }
 
-    /// Procesa sección Beep
+    /// Procesa sección Beep (Epson `ESC ( A`)
     pub fn process_beep(beep: &Beep) -> Result<Vec<u8>, String> {
         let times = if beep.times == 0 { 1 } else { beep.times };
         let duration = if beep.duration == 0 {
@@ -111,6 +114,106 @@ impl PrinterControl {
             beep.duration
         };
         Ok(Self::beep_custom(times, duration))
+    }
+
+    /// Procesa sección Beep2 (buzzer genérico `ESC B n t`)
+    ///
+    /// Alternativa a [`Self::process_beep`] para impresoras genéricas/clones que
+    /// ignoran el `ESC ( A` de Epson.
+    pub fn process_beep2(beep: &Beep) -> Result<Vec<u8>, String> {
+        let times = if beep.times == 0 { 1 } else { beep.times };
+        let duration = if beep.duration == 0 { 3 } else { beep.duration };
+        Ok(Self::beep_generic(times, duration))
+    }
+
+    /// Buzzer genérico `ESC B n t`
+    /// # Arguments
+    /// * `count` - Número de beeps (1-9)
+    /// * `duration` - Duración por beep en unidades de ~100ms (1-9)
+    pub fn beep_generic(count: u8, duration: u8) -> Vec<u8> {
+        let count = count.clamp(1, 9);
+        let duration = duration.clamp(1, 9);
+        vec![0x1B, 0x42, count, duration]
+    }
+
+    /// Interlineado vertical
+    /// `ESC 3 n` (n puntos) o `ESC 2` (default ~1/6") cuando `value` es `None`.
+    pub fn set_line_spacing(value: Option<u8>) -> Vec<u8> {
+        match value {
+            Some(n) => vec![0x1B, 0x33, n],
+            None => vec![0x1B, 0x32],
+        }
+    }
+
+    /// Espaciado a la derecha de cada carácter
+    /// `ESC SP n`
+    pub fn set_char_spacing(n: u8) -> Vec<u8> {
+        vec![0x1B, 0x20, n]
+    }
+
+    /// Posición horizontal absoluta para el siguiente dato
+    /// `ESC $ nL nH`
+    pub fn set_absolute_position(pos: u16) -> Vec<u8> {
+        vec![0x1B, 0x24, (pos & 0xFF) as u8, ((pos >> 8) & 0xFF) as u8]
+    }
+
+    /// Define posiciones de tabulación horizontal
+    /// `ESC D n1 n2 ... NUL`
+    pub fn set_tab_stops(positions: &[u8]) -> Vec<u8> {
+        let mut out = vec![0x1B, 0x44];
+        for &p in positions.iter().take(32) {
+            if p == 0 {
+                continue; // 0 terminaría la lista antes de tiempo
+            }
+            out.push(p);
+        }
+        out.push(0x00); // NUL: fin de la lista
+        out
+    }
+
+    /// Margen izquierdo (modo estándar)
+    /// `GS L nL nH`
+    pub fn set_left_margin(margin: u16) -> Vec<u8> {
+        vec![0x1D, 0x4C, (margin & 0xFF) as u8, ((margin >> 8) & 0xFF) as u8]
+    }
+
+    /// Ancho del área de impresión (modo estándar)
+    /// `GS W nL nH`
+    pub fn set_print_area_width(width: u16) -> Vec<u8> {
+        vec![0x1D, 0x57, (width & 0xFF) as u8, ((width >> 8) & 0xFF) as u8]
+    }
+
+    /// Procesa sección LineSpacing
+    pub fn process_line_spacing(ls: &LineSpacing) -> Result<Vec<u8>, String> {
+        Ok(Self::set_line_spacing(ls.value))
+    }
+
+    /// Procesa sección CharSpacing
+    pub fn process_char_spacing(cs: &CharSpacing) -> Result<Vec<u8>, String> {
+        Ok(Self::set_char_spacing(cs.value))
+    }
+
+    /// Procesa sección Position
+    pub fn process_position(p: &Position) -> Result<Vec<u8>, String> {
+        Ok(Self::set_absolute_position(p.value))
+    }
+
+    /// Procesa sección TabStops
+    pub fn process_tab_stops(t: &TabStops) -> Result<Vec<u8>, String> {
+        if t.positions.is_empty() {
+            return Err("Tab stops cannot be empty".to_string());
+        }
+        Ok(Self::set_tab_stops(&t.positions))
+    }
+
+    /// Procesa sección LeftMargin
+    pub fn process_left_margin(m: &LeftMargin) -> Result<Vec<u8>, String> {
+        Ok(Self::set_left_margin(m.value))
+    }
+
+    /// Procesa sección PrintAreaWidth
+    pub fn process_print_area_width(w: &PrintAreaWidth) -> Result<Vec<u8>, String> {
+        Ok(Self::set_print_area_width(w.value))
     }
 
     /// Procesa sección Drawer

@@ -8,6 +8,8 @@ pub enum PrintSections {
     Feed(Feed),
     Cut(Cut),
     Beep(Beep),
+    /// Generic buzzer (`ESC B n t`) — for printers that ignore the Epson `Beep` (`ESC ( A`).
+    Beep2(Beep),
     Drawer(Drawer),
     GlobalStyles(GlobalStyles),
     Qr(Qr),
@@ -18,6 +20,12 @@ pub enum PrintSections {
     Image(Image),
     Logo(Logo),
     Line(Line),
+    LineSpacing(LineSpacing),
+    CharSpacing(CharSpacing),
+    Position(Position),
+    TabStops(TabStops),
+    LeftMargin(LeftMargin),
+    PrintAreaWidth(PrintAreaWidth),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +81,13 @@ pub struct GlobalStyles {
     pub rotate: Option<bool>,
     pub upside_down: Option<bool>,
     pub size: Option<String>,
+    /// Double-strike / double-print (`ESC G`). Reinforces bold on printers that
+    /// render `ESC E` weakly. Widely supported on generic printers.
+    pub double_strike: Option<bool>,
+    /// When `true`, emits `ESC @` (initialize) and re-applies the code page,
+    /// resetting the printer to defaults. Takes priority: all other style fields
+    /// in the same section are ignored.
+    pub reset: Option<bool>,
 }
 
 impl Default for GlobalStyles {
@@ -87,6 +102,8 @@ impl Default for GlobalStyles {
             rotate: Some(false),
             upside_down: Some(false),
             size: Some("normal".to_string()),
+            double_strike: Some(false),
+            reset: Some(false),
         }
     }
 }
@@ -153,4 +170,46 @@ pub struct Logo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Line {
     pub character: String,
+}
+
+/// Vertical line spacing (`ESC 3 n` / `ESC 2`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineSpacing {
+    /// Spacing in dots. `None` resets to the printer default (~1/6", `ESC 2`).
+    pub value: Option<u8>,
+}
+
+/// Right-side character spacing (`ESC SP n`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CharSpacing {
+    /// Extra spacing to the right of each character, in dots (0–255).
+    pub value: u8,
+}
+
+/// Absolute horizontal print position for the next data (`ESC $ nL nH`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Position {
+    /// Distance from the left margin, in dots.
+    pub value: u16,
+}
+
+/// Horizontal tab stop positions (`ESC D ... NUL`). Emit a `\t` in text to jump.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TabStops {
+    /// Tab stop columns (in characters), ascending. Up to 32 stops.
+    pub positions: Vec<u8>,
+}
+
+/// Left margin in standard mode (`GS L nL nH`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeftMargin {
+    /// Left margin, in dots.
+    pub value: u16,
+}
+
+/// Printable area width in standard mode (`GS W nL nH`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrintAreaWidth {
+    /// Printable area width, in dots.
+    pub value: u16,
 }

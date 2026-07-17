@@ -16,6 +16,8 @@ pub enum TextType {
     UnderlineOff,
     ItalicOn,
     ItalicOff,
+    DoubleStrikeOn,
+    DoubleStrikeOff,
 
     // Alineación
     AlignLeft,
@@ -52,6 +54,10 @@ impl TextType {
             Self::UnderlineOff => &[0x1B, 0x2D, 0x00],
             Self::ItalicOn => &[0x1B, 0x34],
             Self::ItalicOff => &[0x1B, 0x35],
+
+            // Doble golpe (double-strike)
+            Self::DoubleStrikeOn => &[0x1B, 0x47, 0x01],
+            Self::DoubleStrikeOff => &[0x1B, 0x47, 0x00],
 
             // Alineación
             Self::AlignLeft => &[0x1B, 0x61, 0x00],
@@ -111,6 +117,16 @@ pub fn get_styles_diff(old: &GlobalStyles, new: &GlobalStyles) -> Vec<u8> {
             output.extend_from_slice(TextType::ItalicOn.command());
         } else {
             output.extend_from_slice(TextType::ItalicOff.command());
+        }
+    }
+
+    let old_double_strike = get_bool(&old.double_strike);
+    let new_double_strike = get_bool(&new.double_strike);
+    if old_double_strike != new_double_strike {
+        if new_double_strike {
+            output.extend_from_slice(TextType::DoubleStrikeOn.command());
+        } else {
+            output.extend_from_slice(TextType::DoubleStrikeOff.command());
         }
     }
 

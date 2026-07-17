@@ -173,6 +173,13 @@ export interface GlobalStyles {
   rotate?: boolean
   upside_down?: boolean
   size?: TextSize
+  /** Double-strike / double-print (`ESC G`). Reinforces bold on generic printers. */
+  double_strike?: boolean
+  /**
+   * When `true`, resets the printer (`ESC @`) and re-applies the code page.
+   * Takes priority: all other style fields in the same section are ignored.
+   */
+  reset?: boolean
 }
 
 // ─── Print section interfaces ─────────────────────────────────────────────────
@@ -283,6 +290,36 @@ export interface Line {
   character: string
 }
 
+export interface LineSpacing {
+  /** Spacing in dots. Omit / `null` resets to the printer default (~1/6"). */
+  value?: number | null
+}
+
+export interface CharSpacing {
+  /** Extra spacing to the right of each character, in dots (0–255). */
+  value: number
+}
+
+export interface Position {
+  /** Absolute horizontal position for the next data, in dots from the left margin. */
+  value: number
+}
+
+export interface TabStops {
+  /** Tab stop columns (in characters), ascending. Up to 32. Emit `\t` in text to jump. */
+  positions: number[]
+}
+
+export interface LeftMargin {
+  /** Left margin in dots (standard mode). */
+  value: number
+}
+
+export interface PrintAreaWidth {
+  /** Printable area width in dots (standard mode). */
+  value: number
+}
+
 // ─── Union type ───────────────────────────────────────────────────────────────
 
 export type PrintSections =
@@ -292,6 +329,7 @@ export type PrintSections =
   | { Feed: Feed }
   | { Cut: Cut }
   | { Beep: Beep }
+  | { Beep2: Beep }
   | { Drawer: Drawer }
   | { GlobalStyles: GlobalStyles }
   | { Qr: Qr }
@@ -302,6 +340,12 @@ export type PrintSections =
   | { Image: Image }
   | { Logo: Logo }
   | { Line: Line }
+  | { LineSpacing: LineSpacing }
+  | { CharSpacing: CharSpacing }
+  | { Position: Position }
+  | { TabStops: TabStops }
+  | { LeftMargin: LeftMargin }
+  | { PrintAreaWidth: PrintAreaWidth }
 
 // ─── Request interfaces ───────────────────────────────────────────────────────
 
@@ -340,6 +384,14 @@ export interface TestPrintRequest {
   test_all_fonts?: boolean
   test_invert?: boolean
   test_rotate?: boolean
+  /** Double-strike (`ESC G`) demo line in the text-styles section. */
+  test_double_strike?: boolean
+  /** Line spacing (`ESC 3`/`ESC 2`) + character spacing (`ESC SP`) demo. */
+  test_spacing?: boolean
+  /** Tab stops (`ESC D`), absolute position (`ESC $`) and margins (`GS L`/`GS W`) demo. */
+  test_positioning?: boolean
+  /** Generic buzzer (`ESC B`) — for printers that ignore the Epson beep. */
+  test_beep2?: boolean
 }
 
 // ─── Helper builders ──────────────────────────────────────────────────────────
@@ -379,9 +431,52 @@ export function globalStyles(styles: GlobalStyles): PrintSections {
   return { GlobalStyles: styles }
 }
 
-/** Creates a Beep section */
+/**
+ * Creates a reset section: initializes the printer (`ESC @`) and re-applies the
+ * code page. Shorthand for `globalStyles({ reset: true })`.
+ */
+export function reset(): PrintSections {
+  return { GlobalStyles: { reset: true } }
+}
+
+/** Creates a Beep section (Epson `ESC ( A`) */
 export function beep(times: number = 1, duration: number = 3): PrintSections {
   return { Beep: { times, duration } }
+}
+
+/** Creates a Beep2 section — generic buzzer (`ESC B n t`) for printers that ignore `beep()` */
+export function beep2(times: number = 1, duration: number = 3): PrintSections {
+  return { Beep2: { times, duration } }
+}
+
+/** Creates a LineSpacing section. Omit `value` to reset to the printer default (`ESC 2`). */
+export function lineSpacing(value?: number): PrintSections {
+  return { LineSpacing: { value: value ?? null } }
+}
+
+/** Creates a CharSpacing section (`ESC SP n`) */
+export function charSpacing(value: number): PrintSections {
+  return { CharSpacing: { value } }
+}
+
+/** Creates a Position section — absolute horizontal position in dots (`ESC $`) */
+export function position(value: number): PrintSections {
+  return { Position: { value } }
+}
+
+/** Creates a TabStops section (`ESC D`). Emit `\t` in text to jump to the next stop. */
+export function tabStops(positions: number[]): PrintSections {
+  return { TabStops: { positions } }
+}
+
+/** Creates a LeftMargin section — left margin in dots (`GS L`) */
+export function leftMargin(value: number): PrintSections {
+  return { LeftMargin: { value } }
+}
+
+/** Creates a PrintAreaWidth section — printable width in dots (`GS W`) */
+export function printAreaWidth(value: number): PrintSections {
+  return { PrintAreaWidth: { value } }
 }
 
 /** Creates a Drawer section */

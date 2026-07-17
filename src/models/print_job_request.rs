@@ -85,6 +85,22 @@ pub struct TestPrintRequest {
 
     #[serde(default = "default_false")]
     pub test_rotate: bool,
+
+    /// Double-strike (`ESC G`) demo line inside the text-styles section.
+    #[serde(default = "default_false")]
+    pub test_double_strike: bool,
+
+    /// Line spacing (`ESC 3`/`ESC 2`) + character spacing (`ESC SP`) demo.
+    #[serde(default = "default_false")]
+    pub test_spacing: bool,
+
+    /// Tab stops (`ESC D`), absolute position (`ESC $`) and margins (`GS L`/`GS W`) demo.
+    #[serde(default = "default_false")]
+    pub test_positioning: bool,
+
+    /// Generic buzzer (`ESC B`) — for printers that ignore the Epson beep (`ESC ( A`).
+    #[serde(default = "default_false")]
+    pub test_beep2: bool,
 }
 
 fn default_true() -> bool {

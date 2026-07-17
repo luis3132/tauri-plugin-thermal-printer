@@ -38,6 +38,10 @@ impl TestPrinter {
                 test_all_fonts: true,
                 test_invert: true,
                 test_rotate: true,
+                test_double_strike: true,
+                test_spacing: true,
+                test_positioning: true,
+                test_beep2: true,
                 test_feed: true,
                 test_cash_drawer: true,
                 include_beep: true,
@@ -105,6 +109,16 @@ impl TestPrinter {
             self.add_rotate_section(&mut document)?;
         }
 
+        // ==================== ESPACIADO ====================
+        if request.test_spacing {
+            self.add_spacing_section(&mut document)?;
+        }
+
+        // ==================== POSICIONAMIENTO ====================
+        if request.test_positioning {
+            self.add_positioning_section(&mut document)?;
+        }
+
         // ==================== SEPARADORES ====================
         if request.include_separators {
             self.add_separators_section(&mut document)?;
@@ -151,6 +165,11 @@ impl TestPrinter {
         // Beep al final si está habilitado
         if request.include_beep {
             document.extend(PrinterControl::beep_custom(3, 100));
+        }
+
+        // Buzzer genérico (ESC B) para impresoras que ignoran el beep de Epson
+        if request.test_beep2 {
+            document.extend(PrinterControl::beep_generic(2, 3));
         }
 
         // Avanzar papel antes de cortar
@@ -224,6 +243,13 @@ impl TestPrinter {
         document.extend(b"5. Doble Tamano\n");
         document.extend(TextType::Normal.command());
 
+        // Doble golpe (double-strike) — refuerza la negrita en genéricas
+        if self.print_job_context.test_double_strike {
+            document.extend(TextType::DoubleStrikeOn.command());
+            document.extend(b"6. Doble Golpe (double-strike)\n");
+            document.extend(TextType::DoubleStrikeOff.command());
+        }
+
         document.extend(b"\n");
         Ok(())
     }
@@ -286,6 +312,52 @@ impl TestPrinter {
         document.extend(TextType::RotateOn.command());
         document.extend(b"Texto Rotado 90 grados\n");
         document.extend(TextType::RotateOff.command());
+        document.extend(b"\n");
+        Ok(())
+    }
+
+    fn add_spacing_section(&self, document: &mut Vec<u8>) -> Result<(), String> {
+        document.extend(TextType::BoldOn.command());
+        document.extend(b">>> ESPACIADO <<<\n");
+        document.extend(TextType::BoldOff.command());
+
+        // Interlineado apretado (ESC 3 n)
+        document.extend(b"Interlineado normal:\n");
+        document.extend(b"Linea 1\nLinea 2\n");
+
+        document.extend(PrinterControl::set_line_spacing(Some(20)));
+        document.extend(b"Interlineado apretado:\n");
+        document.extend(b"Linea 1\nLinea 2\n");
+        document.extend(PrinterControl::set_line_spacing(None)); // reset (ESC 2)
+
+        // Espaciado de carácter (ESC SP n)
+        document.extend(PrinterControl::set_char_spacing(3));
+        document.extend(b"Caracteres separados\n");
+        document.extend(PrinterControl::set_char_spacing(0));
+
+        document.extend(b"\n");
+        Ok(())
+    }
+
+    fn add_positioning_section(&self, document: &mut Vec<u8>) -> Result<(), String> {
+        document.extend(TextType::BoldOn.command());
+        document.extend(b">>> POSICIONAMIENTO <<<\n");
+        document.extend(TextType::BoldOff.command());
+
+        // Tabuladores (ESC D ... NUL) + HT (\t)
+        document.extend(PrinterControl::set_tab_stops(&[10, 24]));
+        document.extend(b"A\tB\tC\n");
+
+        // Posición absoluta (ESC $)
+        document.extend(b"Pos 0:");
+        document.extend(PrinterControl::set_absolute_position(200));
+        document.extend(b"Pos 200 dots\n");
+
+        // Margen izquierdo y ancho de área (GS L / GS W)
+        document.extend(PrinterControl::set_left_margin(60));
+        document.extend(b"Con margen izquierdo\n");
+        document.extend(PrinterControl::set_left_margin(0));
+
         document.extend(b"\n");
         Ok(())
     }

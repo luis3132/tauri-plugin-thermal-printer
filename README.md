@@ -34,6 +34,7 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [Feed](#feed)
   - [Cut](#cut)
   - [Beep](#beep)
+  - [Beep2](#beep2)
   - [Drawer](#drawer)
   - [Qr](#qr)
   - [Barcode](#barcode)
@@ -44,6 +45,12 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [Logo](#logo)
   - [Line](#line)
   - [GlobalStyles](#globalstyles)
+  - [LineSpacing](#linespacing)
+  - [CharSpacing](#charspacing)
+  - [Position](#position)
+  - [TabStops](#tabstops)
+  - [LeftMargin](#leftmargin)
+  - [PrintAreaWidth](#printareawidth)
 - [TypeScript Constants & Helpers](#typescript-constants--helpers)
   - [CodePage](#codepage)
   - [Style constants](#style-constants)
@@ -662,7 +669,7 @@ Cuts the paper.
 - `feed` (number, required): Lines to advance before cutting
 
 ##### Beep
-Emits a beep.
+Emits a beep using the Epson command (`ESC ( A`).
 
 ```json
 {
@@ -675,6 +682,23 @@ Emits a beep.
 
 - `times` (number, required): Number of beeps
 - `duration` (number, required): Duration in milliseconds
+
+> **Generic printers:** many cheap/clone printers ignore `ESC ( A`. If you don't hear a beep, use [`Beep2`](#beep2) instead, which uses the widely-supported `ESC B` command.
+
+##### Beep2
+Emits a beep using the **generic** buzzer command (`ESC B n t`). Use this for generic/clone printers that ignore [`Beep`](#beep).
+
+```json
+{
+  "Beep2": {
+    "times": 2,
+    "duration": 3
+  }
+}
+```
+
+- `times` (number, required): Number of beeps (1–9)
+- `duration` (number, required): Duration per beep in ~100ms units (1–9)
 
 ##### Drawer
 Opens the cash drawer.
@@ -885,7 +909,8 @@ Changes the current global styles that will be applied to subsequent text sectio
     "font": "A",
     "rotate": false,
     "upside_down": false,
-    "size": "normal"
+    "size": "normal",
+    "double_strike": false
   }
 }
 ```
@@ -899,6 +924,71 @@ Changes the current global styles that will be applied to subsequent text sectio
 - `rotate` (boolean, optional): Text rotated 90 degrees (default: `false`)
 - `upside_down` (boolean, optional): Upside down text (default: `false`)
 - `size` (string, optional): Size ("normal", "height", "width", "double") (default: `"normal"`)
+- `double_strike` (boolean, optional): Double-strike / double-print (`ESC G`). Reinforces bold on generic printers that render `ESC E` weakly (default: `false`)
+
+###### Reset
+
+Pass `reset: true` in a `GlobalStyles` section to reset the printer (`ESC @`) and re-apply the code page. **`reset` takes priority: all other style fields in the same section are ignored.**
+
+```json
+{ "GlobalStyles": { "reset": true } }
+```
+
+##### LineSpacing
+Sets the vertical line spacing (`ESC 3 n`). Omit `value` (or `null`) to reset to the printer default ~1/6" (`ESC 2`).
+
+```json
+{ "LineSpacing": { "value": 20 } }
+```
+
+- `value` (number, optional): Spacing in dots. Omit / `null` = default.
+
+##### CharSpacing
+Sets the right-side character spacing (`ESC SP n`).
+
+```json
+{ "CharSpacing": { "value": 3 } }
+```
+
+- `value` (number, required): Extra spacing per character, in dots (0–255).
+
+##### Position
+Sets the absolute horizontal print position for the next data (`ESC $`).
+
+```json
+{ "Position": { "value": 200 } }
+```
+
+- `value` (number, required): Distance from the left margin, in dots.
+
+##### TabStops
+Defines horizontal tab stops (`ESC D ... NUL`). Emit a `\t` inside your text to jump to the next stop.
+
+```json
+{ "TabStops": { "positions": [10, 24] } }
+```
+
+- `positions` (number[], required): Tab stop columns (in characters), ascending. Up to 32. **Must not be empty.**
+
+##### LeftMargin
+Sets the left margin in standard mode (`GS L`).
+
+```json
+{ "LeftMargin": { "value": 60 } }
+```
+
+- `value` (number, required): Left margin, in dots.
+
+##### PrintAreaWidth
+Sets the printable area width in standard mode (`GS W`).
+
+```json
+{ "PrintAreaWidth": { "value": 512 } }
+```
+
+- `value` (number, required): Printable area width, in dots.
+
+> **Compatibility note:** all of the above are classic single-letter ESC/POS commands with high support across generic/clone thermal printers.
 
 ---
 
@@ -1037,7 +1127,15 @@ const sections = [
 | `feed(value, type?)` | Creates a `{ Feed: ... }` section (default `"lines"`) |
 | `cut(mode?, feedLines?)` | Creates a `{ Cut: ... }` section (default `"partial"`, 4 lines) |
 | `globalStyles(styles)` | Creates a `{ GlobalStyles: ... }` section |
-| `beep(times?, duration?)` | Creates a `{ Beep: ... }` section (default `1`, `3`) |
+| `reset()` | Creates a `{ GlobalStyles: { reset: true } }` section — resets the printer and re-applies the code page |
+| `beep(times?, duration?)` | Creates a `{ Beep: ... }` section — Epson `ESC ( A` (default `1`, `3`) |
+| `beep2(times?, duration?)` | Creates a `{ Beep2: ... }` section — generic `ESC B` for clone printers (default `1`, `3`) |
+| `lineSpacing(value?)` | Creates a `{ LineSpacing: ... }` section — omit `value` to reset to default |
+| `charSpacing(value)` | Creates a `{ CharSpacing: ... }` section |
+| `position(value)` | Creates a `{ Position: ... }` section — absolute horizontal position in dots |
+| `tabStops(positions)` | Creates a `{ TabStops: ... }` section — emit `\t` in text to jump |
+| `leftMargin(value)` | Creates a `{ LeftMargin: ... }` section — margin in dots |
+| `printAreaWidth(value)` | Creates a `{ PrintAreaWidth: ... }` section — width in dots |
 | `drawer(pin?, pulse_time?)` | Creates a `{ Drawer: ... }` section (default `2`, `120`) |
 | `table(columns, body, options?)` | Creates a `{ Table: ... }` section (`truncate` default `true`) |
 | `qr(data, options?)` | Creates a `{ Qr: ... }` section (`size=6`, `error_correction="M"`, `model=2`) |

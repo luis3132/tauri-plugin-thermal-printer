@@ -17,6 +17,9 @@ mod error;
 mod models;
 mod process;
 
+#[cfg(test)]
+mod test;
+
 pub use commands::*;
 
 #[cfg(desktop)]

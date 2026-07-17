@@ -75,11 +75,21 @@ impl ProcessPrint {
             PrintSections::Feed(feed) => PrinterControl::process_feed(feed),
             PrintSections::Cut(cut) => PrinterControl::process_cut(cut),
             PrintSections::Beep(beep) => PrinterControl::process_beep(beep),
+            PrintSections::Beep2(beep) => PrinterControl::process_beep2(beep),
             PrintSections::Drawer(drawer) => PrinterControl::process_drawer(drawer),
             PrintSections::GlobalStyles(styles) => {
-                let diff = get_styles_diff(&self.current_styles, styles);
-                self.current_styles = styles.clone();
-                Ok(diff)
+                // `reset` toma prioridad: reinicia la impresora (ESC @), vuelve a
+                // aplicar el code page (que ESC @ borra) e ignora el resto de campos.
+                if styles.reset.unwrap_or(false) {
+                    let mut output = PrinterControl::initialize();
+                    output.extend(self.print_job_context.options.escpos_command());
+                    self.current_styles = GlobalStyles::default();
+                    Ok(output)
+                } else {
+                    let diff = get_styles_diff(&self.current_styles, styles);
+                    self.current_styles = styles.clone();
+                    Ok(diff)
+                }
             }
             PrintSections::Qr(qr) => qr_cmd::process_section(qr, &self.current_styles),
             PrintSections::Barcode(barcode) => {
@@ -96,9 +106,12 @@ impl ProcessPrint {
                 self.print_job_context.paper_size.chars_per_line(),
                 encoder,
             ),
+            PrintSections::LineSpacing(ls) => PrinterControl::process_line_spacing(ls),
+            PrintSections::CharSpacing(cs) => PrinterControl::process_char_spacing(cs),
+            PrintSections::Position(p) => PrinterControl::process_position(p),
+            PrintSections::TabStops(t) => PrinterControl::process_tab_stops(t),
+            PrintSections::LeftMargin(m) => PrinterControl::process_left_margin(m),
+            PrintSections::PrintAreaWidth(w) => PrinterControl::process_print_area_width(w),
         }
     }
 }
-
-#[cfg(test)]
-mod tests;
