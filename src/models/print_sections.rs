@@ -17,6 +17,10 @@ pub enum PrintSections {
     Table(Table),
     DataMatrix(DataMatrixModel),
     Pdf417(Pdf417),
+    Aztec(Aztec),
+    Gs1Databar2d(Gs1Databar2d),
+    MaxiCode(MaxiCode),
+    Composite(Composite),
     Image(Image),
     Logo(Logo),
     Line(Line),
@@ -150,6 +154,39 @@ pub struct Pdf417 {
     pub width: u8,
     pub height: u8,
     pub error_correction: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Aztec {
+    pub data: String,
+    pub mode: u8,
+    pub layers: u8,
+    pub size: u8,
+    pub error_correction: u8,
+    pub align: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Gs1Databar2d {
+    pub data: String,
+    pub databar_type: String,
+    pub width: u8,
+    pub align: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MaxiCode {
+    pub data: String,
+    pub mode: u8,
+    pub align: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Composite {
+    pub data: String,
+    pub symbol_type: u8,
+    pub width: u8,
+    pub align: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

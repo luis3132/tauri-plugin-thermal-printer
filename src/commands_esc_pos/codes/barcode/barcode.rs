@@ -113,6 +113,11 @@ pub fn process_section(
         "CODABAR" => BarcodeType::Codabar,
         "CODE93" => BarcodeType::Code93,
         "CODE128" => BarcodeType::Code128,
+        "GS1-128" => BarcodeType::Gs1128,
+        "GS1-DATABAR-OMNI" => BarcodeType::Gs1DatabarOmni,
+        "GS1-DATABAR-TRUNCATED" => BarcodeType::Gs1DatabarTruncated,
+        "GS1-DATABAR-LIMITED" => BarcodeType::Gs1DatabarLimited,
+        "GS1-DATABAR-EXPANDED" => BarcodeType::Gs1DatabarExpanded,
         _ => BarcodeType::Code128,
     };
 

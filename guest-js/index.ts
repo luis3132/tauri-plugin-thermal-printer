@@ -72,17 +72,71 @@ export type TextFont = 'A' | 'B' | 'C'
 /** Barcode text position options */
 export type BarcodeTextPosition = 'none' | 'above' | 'below' | 'both'
 
-/** Barcode type options */
-export type BarcodeType =
+/**
+ * Barcode types grouped by the character set (charset) each symbology accepts.
+ *
+ * Each family below is paired with a branded data type so the compiler forces
+ * you to build the payload with the matching helper (`numericBarcodeData`,
+ * `code39BarcodeData`, `codabarBarcodeData`, `gs1BarcodeData`) via the typed
+ * factories (`numericBarcode`, `code39Barcode`, …). CODE93/CODE128 accept any
+ * ASCII string.
+ */
+
+/** Numeric-only symbologies (digits `0-9`). Includes UPC/EAN/ITF/GS1 DataBar 1D. */
+export type NumericBarcodeType =
   | 'UPC-A'
   | 'UPC-E'
   | 'EAN13'
   | 'EAN8'
-  | 'CODE39'
   | 'ITF'
-  | 'CODABAR'
-  | 'CODE93'
-  | 'CODE128'
+  | 'GS1-DATABAR-OMNI'
+  | 'GS1-DATABAR-TRUNCATED'
+  | 'GS1-DATABAR-LIMITED'
+
+/** CODE39: digits, uppercase `A-Z`, space and `- . $ / + %`. */
+export type Code39BarcodeType = 'CODE39'
+
+/** CODABAR: digits, `- $ : / . +` and start/stop `A-D`. */
+export type CodabarBarcodeType = 'CODABAR'
+
+/** Full-ASCII symbologies (accept any ASCII character). */
+export type AsciiBarcodeType = 'CODE93' | 'CODE128'
+
+/** GS1 symbologies whose data uses GS1 AI format (printable ASCII). */
+export type Gs1BarcodeType = 'GS1-128' | 'GS1-DATABAR-EXPANDED'
+
+/** Barcode type options (union of every charset family). */
+export type BarcodeType =
+  | NumericBarcodeType
+  | Code39BarcodeType
+  | CodabarBarcodeType
+  | AsciiBarcodeType
+  | Gs1BarcodeType
+
+// ─── Branded data types per charset family ────────────────────────────────────
+// Force, at compile time, that the payload is built for the right symbology.
+// The Rust side keeps `data: string`, so leading zeros are preserved.
+
+/** Payload for a {@link NumericBarcodeType}. Build with {@link numericBarcodeData}. */
+export type NumericBarcodeData = string & { readonly __barcodeCharset: 'numeric' }
+/** Payload for a {@link Code39BarcodeType}. Build with {@link code39BarcodeData}. */
+export type Code39BarcodeData = string & { readonly __barcodeCharset: 'code39' }
+/** Payload for a {@link CodabarBarcodeType}. Build with {@link codabarBarcodeData}. */
+export type CodabarBarcodeData = string & { readonly __barcodeCharset: 'codabar' }
+/** Payload for a {@link Gs1BarcodeType}. Build with {@link gs1BarcodeData}. */
+export type Gs1BarcodeData = string & { readonly __barcodeCharset: 'gs1' }
+
+/**
+ * Brand a string as numeric-barcode data (digits only, leading zeros kept).
+ * Pure compile-time cast — no runtime validation.
+ */
+export const numericBarcodeData = (data: string): NumericBarcodeData => data as NumericBarcodeData
+/** Brand a string as CODE39 data. Pure compile-time cast. */
+export const code39BarcodeData = (data: string): Code39BarcodeData => data as Code39BarcodeData
+/** Brand a string as CODABAR data. Pure compile-time cast. */
+export const codabarBarcodeData = (data: string): CodabarBarcodeData => data as CodabarBarcodeData
+/** Brand a string as GS1 (AI format) data. Pure compile-time cast. */
+export const gs1BarcodeData = (data: string): Gs1BarcodeData => data as Gs1BarcodeData
 
 /** QR error correction level */
 export type QrErrorCorrection = 'L' | 'M' | 'Q' | 'H'
@@ -127,6 +181,16 @@ export const BARCODE_TYPE = {
   CODABAR: 'CODABAR' as BarcodeType,
   CODE93: 'CODE93' as BarcodeType,
   CODE128: 'CODE128' as BarcodeType,
+  /** GS1-128 (EAN-128). Data may use GS1 AI format with FNC1. */
+  GS1_128: 'GS1-128' as BarcodeType,
+  /** GS1 DataBar Omnidirectional — 13 numeric digits. */
+  GS1_DATABAR_OMNI: 'GS1-DATABAR-OMNI' as BarcodeType,
+  /** GS1 DataBar Truncated — 13 numeric digits. */
+  GS1_DATABAR_TRUNCATED: 'GS1-DATABAR-TRUNCATED' as BarcodeType,
+  /** GS1 DataBar Limited — 13 numeric digits (first digit 0 or 1). */
+  GS1_DATABAR_LIMITED: 'GS1-DATABAR-LIMITED' as BarcodeType,
+  /** GS1 DataBar Expanded — variable GS1 AI data. */
+  GS1_DATABAR_EXPANDED: 'GS1-DATABAR-EXPANDED' as BarcodeType,
 } as const
 
 export const BARCODE_TEXT_POSITION = {
@@ -269,6 +333,64 @@ export interface Pdf417 {
   error_correction: number
 }
 
+/**
+ * Aztec Code (2D). Requires printer firmware support (advanced Epson models).
+ */
+export interface Aztec {
+  data: string
+  /** 0 = full range, 1 = compact */
+  mode: number
+  /** Number of data layers, 0 = automatic (1–32) */
+  layers: number
+  /** Module size 2–16 */
+  size: number
+  /** Error correction as a percentage of capacity (5–95) */
+  error_correction: number
+  align?: TextAlign
+}
+
+/** GS1 DataBar 2D subtype. */
+export type Gs1Databar2dType = 'STACKED' | 'STACKED-OMNI' | 'EXPANDED-STACKED'
+
+/**
+ * 2D GS1 DataBar (Stacked / Stacked Omnidirectional / Expanded Stacked).
+ * Requires printer firmware support (advanced Epson models).
+ */
+export interface Gs1Databar2d {
+  data: string
+  databar_type: Gs1Databar2dType
+  /** Module width 2–8 */
+  width: number
+  align?: TextAlign
+}
+
+/**
+ * MaxiCode (2D). Fixed physical size. Requires printer firmware support
+ * (advanced Epson models).
+ */
+export interface MaxiCode {
+  data: string
+  /** Mode 2–6 (4 is the general-purpose default) */
+  mode: number
+  align?: TextAlign
+}
+
+/**
+ * Composite Symbology (GS1 Composite CC-A/CC-B/CC-C). Requires printer firmware
+ * support (advanced Epson models).
+ */
+export interface Composite {
+  data: string
+  /**
+   * The `m` parameter selecting the 1D host + 2D component. Its exact value is
+   * printer/spec specific — check your device's ESC/POS reference.
+   */
+  symbol_type: number
+  /** Module width 2–8 */
+  width: number
+  align?: TextAlign
+}
+
 export interface Image {
   /** Base64 encoded image (with or without data URI prefix) */
   data: string
@@ -337,6 +459,10 @@ export type PrintSections =
   | { Table: Table }
   | { DataMatrix: DataMatrixModel }
   | { Pdf417: Pdf417 }
+  | { Aztec: Aztec }
+  | { Gs1Databar2d: Gs1Databar2d }
+  | { MaxiCode: MaxiCode }
+  | { Composite: Composite }
   | { Image: Image }
   | { Logo: Logo }
   | { Line: Line }
@@ -526,16 +652,18 @@ export function qr(
   }
 }
 
-/** Creates a Barcode section */
-export function barcode(
+/** Options shared by every barcode factory. */
+export interface BarcodeOptions {
+  width?: number
+  height?: number
+  text_position?: BarcodeTextPosition
+  align?: TextAlign
+}
+
+function makeBarcodeSection(
   data: string,
-  barcode_type: BarcodeType = 'CODE128',
-  options?: {
-    width?: number
-    height?: number
-    text_position?: BarcodeTextPosition
-    align?: TextAlign
-  },
+  barcode_type: BarcodeType,
+  options?: BarcodeOptions,
 ): PrintSections {
   return {
     Barcode: {
@@ -547,6 +675,74 @@ export function barcode(
       align: options?.align,
     },
   }
+}
+
+/**
+ * Creates a Barcode section (untyped data).
+ *
+ * @deprecated Use the charset-typed factories instead: {@link numericBarcode},
+ * {@link code39Barcode}, {@link codabarBarcode}, {@link asciiBarcode} or
+ * {@link gs1Barcode}. They force, at compile time, that the payload matches the
+ * character set the symbology accepts. This function stays for backwards
+ * compatibility and accepts any `string`.
+ */
+export function barcode(
+  data: string,
+  barcode_type: BarcodeType = 'CODE128',
+  options?: BarcodeOptions,
+): PrintSections {
+  return makeBarcodeSection(data, barcode_type, options)
+}
+
+/**
+ * Creates a numeric barcode (UPC/EAN/ITF/GS1 DataBar 1D).
+ * Build `data` with {@link numericBarcodeData} — digits only, leading zeros kept.
+ */
+export function numericBarcode(
+  data: NumericBarcodeData,
+  barcode_type: NumericBarcodeType,
+  options?: BarcodeOptions,
+): PrintSections {
+  return makeBarcodeSection(data, barcode_type, options)
+}
+
+/**
+ * Creates a CODE39 barcode.
+ * Build `data` with {@link code39BarcodeData} — digits, uppercase A-Z and `- . $ / + %`.
+ */
+export function code39Barcode(data: Code39BarcodeData, options?: BarcodeOptions): PrintSections {
+  return makeBarcodeSection(data, 'CODE39', options)
+}
+
+/**
+ * Creates a CODABAR barcode.
+ * Build `data` with {@link codabarBarcodeData} — digits, `- $ : / . +` and start/stop A-D.
+ */
+export function codabarBarcode(data: CodabarBarcodeData, options?: BarcodeOptions): PrintSections {
+  return makeBarcodeSection(data, 'CODABAR', options)
+}
+
+/**
+ * Creates a full-ASCII barcode (CODE93 / CODE128). Accepts any ASCII `string`.
+ */
+export function asciiBarcode(
+  data: string,
+  barcode_type: AsciiBarcodeType = 'CODE128',
+  options?: BarcodeOptions,
+): PrintSections {
+  return makeBarcodeSection(data, barcode_type, options)
+}
+
+/**
+ * Creates a GS1 barcode (GS1-128 / GS1 DataBar Expanded).
+ * Build `data` with {@link gs1BarcodeData} — GS1 AI format (printable ASCII).
+ */
+export function gs1Barcode(
+  data: Gs1BarcodeData,
+  barcode_type: Gs1BarcodeType,
+  options?: BarcodeOptions,
+): PrintSections {
+  return makeBarcodeSection(data, barcode_type, options)
 }
 
 /** Creates a DataMatrix section */
@@ -578,6 +774,97 @@ export function pdf417(
       width: options?.width ?? 2,
       height: options?.height ?? 3,
       error_correction: options?.error_correction ?? 2,
+    },
+  }
+}
+
+/**
+ * Creates an Aztec Code section.
+ * Requires printer firmware support (advanced Epson models).
+ */
+export function aztec(
+  data: string,
+  options?: {
+    mode?: number
+    layers?: number
+    size?: number
+    error_correction?: number
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    Aztec: {
+      data,
+      mode: options?.mode ?? 0,
+      layers: options?.layers ?? 0,
+      size: options?.size ?? 3,
+      error_correction: options?.error_correction ?? 23,
+      align: options?.align,
+    },
+  }
+}
+
+/**
+ * Creates a 2D GS1 DataBar section.
+ * Requires printer firmware support (advanced Epson models).
+ */
+export function gs1Databar2d(
+  data: string,
+  databar_type: Gs1Databar2dType = 'STACKED-OMNI',
+  options?: {
+    width?: number
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    Gs1Databar2d: {
+      data,
+      databar_type,
+      width: options?.width ?? 2,
+      align: options?.align,
+    },
+  }
+}
+
+/**
+ * Creates a MaxiCode section (mode 2–6, default 4).
+ * Requires printer firmware support (advanced Epson models).
+ */
+export function maxicode(
+  data: string,
+  options?: {
+    mode?: number
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    MaxiCode: {
+      data,
+      mode: options?.mode ?? 4,
+      align: options?.align,
+    },
+  }
+}
+
+/**
+ * Creates a Composite Symbology section.
+ * Requires printer firmware support (advanced Epson models). The `symbol_type`
+ * (`m`) value is printer/spec specific — check your device's ESC/POS reference.
+ */
+export function composite(
+  data: string,
+  options?: {
+    symbol_type?: number
+    width?: number
+    align?: TextAlign
+  },
+): PrintSections {
+  return {
+    Composite: {
+      data,
+      symbol_type: options?.symbol_type ?? 48,
+      width: options?.width ?? 2,
+      align: options?.align,
     },
   }
 }

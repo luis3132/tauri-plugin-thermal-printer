@@ -1,5 +1,9 @@
+use crate::commands_esc_pos::codes::aztec::aztec as aztec_cmd;
 use crate::commands_esc_pos::codes::barcode::barcode as barcode_cmd;
+use crate::commands_esc_pos::codes::composite::composite as composite_cmd;
 use crate::commands_esc_pos::codes::data_matrix::data_matrix as data_matrix_cmd;
+use crate::commands_esc_pos::codes::gs1_databar_2d::gs1_databar_2d as gs1_databar_2d_cmd;
+use crate::commands_esc_pos::codes::maxicode::maxicode as maxicode_cmd;
 use crate::commands_esc_pos::codes::pdf417::pdf417 as pdf417_cmd;
 use crate::commands_esc_pos::codes::qr::qr as qr_cmd;
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
@@ -97,6 +101,16 @@ impl ProcessPrint {
             }
             PrintSections::Pdf417(pdf417) => pdf417_cmd::process_section(pdf417),
             PrintSections::DataMatrix(data_matrix) => data_matrix_cmd::process_section(data_matrix),
+            PrintSections::Aztec(aztec) => aztec_cmd::process_section(aztec, &self.current_styles),
+            PrintSections::Gs1Databar2d(databar) => {
+                gs1_databar_2d_cmd::process_section(databar, &self.current_styles)
+            }
+            PrintSections::MaxiCode(maxicode) => {
+                maxicode_cmd::process_section(maxicode, &self.current_styles)
+            }
+            PrintSections::Composite(composite) => {
+                composite_cmd::process_section(composite, &self.current_styles)
+            }
             PrintSections::Image(imagen) => {
                 image_cmd::process_section(imagen, self.print_job_context.paper_size.pixels_width())
             }

@@ -43,7 +43,8 @@ impl DataMatrix {
         let p_l = (data_length & 0xFF) as u8;
         let p_h = ((data_length >> 8) & 0xFF) as u8;
 
-        // DataMatrix usa cn = 50 (0x32)
+        // DataMatrix usa cn = 54 (0x36) según el estándar ESC/POS de Epson.
+        // (cn = 50 corresponde a MaxiCode.)
 
         // Función 67 (0x43) - Establecer tamaño del módulo
         output.extend_from_slice(&[
@@ -52,7 +53,7 @@ impl DataMatrix {
             0x6B,              // k
             0x03,              // pL
             0x00,              // pH
-            0x32,              // cn = 50 (0x32 = DataMatrix)
+            0x36,              // cn = 54 (0x36 = DataMatrix)
             0x43,              // fn = 67 (0x43 = tamaño de módulo)
             self.size.value(), // n (1-16)
         ]);
@@ -64,7 +65,7 @@ impl DataMatrix {
             0x6B, // k
             p_l,  // pL (parte baja de longitud)
             p_h,  // pH (parte alta de longitud)
-            0x32, // cn = 50
+            0x36, // cn = 54
             0x50, // fn = 80 (0x50 = almacenar datos)
             0x30, // m = 48 (tipo de almacenamiento)
         ]);
@@ -77,7 +78,7 @@ impl DataMatrix {
             0x6B, // k
             0x03, // pL
             0x00, // pH
-            0x32, // cn = 50
+            0x36, // cn = 54
             0x51, // fn = 81 (0x51 = imprimir)
             0x30, // m = 48
         ]);

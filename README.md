@@ -41,6 +41,10 @@ This plugin provides thermal printer functionality for Tauri applications, allow
   - [Table](#table)
   - [DataMatrix](#datamatrix)
   - [Pdf417](#pdf417)
+  - [Aztec](#aztec)
+  - [Gs1Databar2d](#gs1databar2d)
+  - [MaxiCode](#maxicode)
+  - [Composite](#composite)
   - [Image](#Image)
   - [Logo](#logo)
   - [Line](#line)
@@ -151,7 +155,7 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 ### Supported Content Types
 
 - **Text**: Title, Subtitle, Text with optional styles
-- **Codes**: QR, Barcode, DataMatrix, PDF417
+- **Codes**: QR, Barcode (incl. GS1-128 & GS1 DataBar), DataMatrix, PDF417, Aztec, 2D GS1 DataBar, MaxiCode, Composite
 - **Media**: Images, Logos
 - **Control**: Feed, Cut, Beep, Cash Drawer
 - **Tables**: Configurable columns
@@ -508,7 +512,23 @@ try {
 
 #### Section Types
 
-Sections are defined as objects in the `sections` array. Each section is an enum variant with its data. Below are all supported section types:
+Sections are defined as objects in the `sections` array. Each section is an enum variant with its data. Below are all supported section types.
+
+Each section shows both the raw JSON shape and a **Helper** — a TypeScript factory function
+that builds the same section for you. All helpers are imported from the plugin's JS package:
+
+```typescript
+import {
+  title, subtitle, text, line, feed, cut, beep, beep2, drawer, globalStyles, reset,
+  lineSpacing, charSpacing, position, tabStops, leftMargin, printAreaWidth,
+  qr, table, dataMatrix, pdf417, aztec, gs1Databar2d, maxicode, composite, image, logo,
+  // barcodes (charset-typed):
+  numericBarcode, numericBarcodeData, code39Barcode, code39BarcodeData,
+  codabarBarcode, codabarBarcodeData, asciiBarcode, gs1Barcode, gs1BarcodeData,
+} from 'tauri-plugin-thermal-printer-api'
+```
+
+The `import` line is omitted from the per-section snippets below for brevity.
 
 ##### Title
 Prints a title with forced double size and center alignment.
@@ -545,6 +565,13 @@ Or simply:
 - `text` (string, required): Title text
 - `styles` (GlobalStyles, optional): Applied styles
 
+**Helper:**
+
+```typescript
+title('My Title')
+title('My Title', { align: 'center' })
+```
+
 ##### Subtitle
 Prints a subtitle with forced bold and increased height.
 
@@ -579,6 +606,13 @@ Or simply:
 
 - `text` (string, required): Subtitle text
 - `styles` (GlobalStyles, optional): Applied styles
+
+**Helper:**
+
+```typescript
+subtitle('My Subtitle')
+subtitle('My Subtitle', { bold: true, underline: true })
+```
 
 ##### Text
 Prints simple text with optional styles.
@@ -631,6 +665,13 @@ You can pick the style that you need, it's not necessary to declared all of them
 - `text` (string, required): Text to print
 - `styles` (GlobalStyles, optional): Applied styles (defaults to current global styles)
 
+**Helper:**
+
+```typescript
+text('Normal text')
+text('Bold underlined', { bold: true, underline: true })
+```
+
 ##### Feed
 Advances the paper by a specific number of lines.
 
@@ -648,6 +689,13 @@ Advances the paper by a specific number of lines.
   - `"dots"` — advance N dot rows (`ESC J n`)
   - `"line_feed"` — send N raw LF characters
 - `value` (number, required): Amount to advance
+
+**Helper:**
+
+```typescript
+feed(3)              // 3 lines
+feed(24, 'dots')     // 24 dot rows
+```
 
 ##### Cut
 Cuts the paper.
@@ -668,6 +716,13 @@ Cuts the paper.
   - `"partial_alt2"` — full cut (alternate)
 - `feed` (number, required): Lines to advance before cutting
 
+**Helper:**
+
+```typescript
+cut()                  // partial cut, feed 4
+cut('full', 3)
+```
+
 ##### Beep
 Emits a beep using the Epson command (`ESC ( A`).
 
@@ -685,6 +740,12 @@ Emits a beep using the Epson command (`ESC ( A`).
 
 > **Generic printers:** many cheap/clone printers ignore `ESC ( A`. If you don't hear a beep, use [`Beep2`](#beep2) instead, which uses the widely-supported `ESC B` command.
 
+**Helper:**
+
+```typescript
+beep(1, 100)
+```
+
 ##### Beep2
 Emits a beep using the **generic** buzzer command (`ESC B n t`). Use this for generic/clone printers that ignore [`Beep`](#beep).
 
@@ -700,6 +761,12 @@ Emits a beep using the **generic** buzzer command (`ESC B n t`). Use this for ge
 - `times` (number, required): Number of beeps (1–9)
 - `duration` (number, required): Duration per beep in ~100ms units (1–9)
 
+**Helper:**
+
+```typescript
+beep2(2, 3)
+```
+
 ##### Drawer
 Opens the cash drawer.
 
@@ -714,6 +781,13 @@ Opens the cash drawer.
 
 - `pin` (number, required): Drawer pin (2 or 5)
 - `pulse_time` (number, required): Pulse time in milliseconds
+
+**Helper:**
+
+```typescript
+drawer()          // pin 2, 120ms pulse
+drawer(5, 100)
+```
 
 ##### Qr
 Prints a QR code.
@@ -736,6 +810,13 @@ Prints a QR code.
 - `model` (number, required): QR model (`1` or `2`)
 - `align` (string, optional): `"left"` | `"center"` | `"right"`
 
+**Helper:**
+
+```typescript
+qr('https://example.com')
+qr('https://example.com', { size: 5, error_correction: 'M', model: 2, align: 'center' })
+```
+
 ##### Barcode
 Prints a barcode.
 
@@ -752,12 +833,43 @@ Prints a barcode.
 }
 ```
 
-- `data` (string, required): Barcode data. **Must not be empty.** Numeric-only types (`UPC-A`, `UPC-E`, `EAN13`, `EAN8`, `ITF`) only accept digit characters — the backend will throw an error otherwise.
-- `barcode_type` (string, required): `"UPC-A"` | `"UPC-E"` | `"EAN13"` | `"EAN8"` | `"CODE39"` | `"ITF"` | `"CODABAR"` | `"CODE93"` | `"CODE128"`
+- `data` (string, required): Barcode data. **Must not be empty.** Numeric-only types (`UPC-A`, `UPC-E`, `EAN13`, `EAN8`, `ITF`, `GS1-DATABAR-OMNI`, `GS1-DATABAR-TRUNCATED`, `GS1-DATABAR-LIMITED`) only accept digit characters — the backend will throw an error otherwise.
+- `barcode_type` (string, required): `"UPC-A"` | `"UPC-E"` | `"EAN13"` | `"EAN8"` | `"CODE39"` | `"ITF"` | `"CODABAR"` | `"CODE93"` | `"CODE128"` | `"GS1-128"` | `"GS1-DATABAR-OMNI"` | `"GS1-DATABAR-TRUNCATED"` | `"GS1-DATABAR-LIMITED"` | `"GS1-DATABAR-EXPANDED"`
 - `width` (number, required): Module width (1–6)
 - `height` (number, required): Height in dots (must be > 0)
 - `text_position` (string, required): `"none"` | `"above"` | `"below"` | `"both"`
 - `align` (string, optional): `"left"` | `"center"` | `"right"` (default: current global alignment)
+
+> **GS1 symbologies** (`GS1-128` and the four `GS1-DATABAR-*` variants) require printer
+> firmware support — many entry-level thermal printers do not implement them. `GS1-128` and
+> `GS1-DATABAR-EXPANDED` accept GS1 AI data (application identifiers); the `GS1-DATABAR-OMNI`,
+> `GS1-DATABAR-TRUNCATED` and `GS1-DATABAR-LIMITED` variants take 13 numeric digits.
+
+**TypeScript — charset-typed factories (recommended):** the JS bindings now group barcode
+types by the character set each symbology accepts and force the payload type at compile time.
+Build the data with the matching helper so wrong data is a compile error, not a runtime failure.
+The Rust side keeps `data` as a `string`, so **leading zeros are preserved**.
+
+```ts
+import {
+  numericBarcode, numericBarcodeData,
+  code39Barcode, code39BarcodeData,
+  codabarBarcode, codabarBarcodeData,
+  asciiBarcode,
+  gs1Barcode, gs1BarcodeData,
+} from 'tauri-plugin-thermal-printer-api'
+
+numericBarcode(numericBarcodeData('0012345678905'), 'EAN13', { height: 100 }) // digits, zero-padding kept
+code39Barcode(code39BarcodeData('ABC-123'))                                   // digits, A-Z and - . $ / + %
+codabarBarcode(codabarBarcodeData('A1234B'))                                  // digits, - $ : / . + and A-D
+asciiBarcode('Any ASCII', 'CODE128')                                          // CODE93 / CODE128 — plain string
+gs1Barcode(gs1BarcodeData('(01)00012345678905'), 'GS1-128')                   // GS1 AI format
+
+// numericBarcode('123', 'EAN13')  ❌ compile error: plain string not allowed for numeric types
+```
+
+The old untyped `barcode(data, barcode_type, options)` is **`@deprecated`** but still exported
+for backwards compatibility (accepts any `string`).
 
 ##### Table
 Prints a table.
@@ -807,6 +919,15 @@ Or simply:
 - `body` (array, required): Data rows — each row must have exactly `columns` cells
 - `truncate` (boolean, optional): Truncate long text instead of wrapping (default: `false`)
 
+**Helper:** (cells are built with the `text(...)` helper)
+
+```typescript
+table(3, [[text('Data1'), text('Data2'), text('Data3')]], {
+  header: [text('Col1'), text('Col2'), text('Col3')],
+  column_widths: [16, 16, 16],
+})
+```
+
 ##### DataMatrix
 Prints a DataMatrix code.
 
@@ -821,6 +942,12 @@ Prints a DataMatrix code.
 
 - `data` (string, required): DataMatrix data
 - `size` (number, required): Module size (1-16)
+
+**Helper:**
+
+```typescript
+dataMatrix('DataMatrix data', 5)
+```
 
 ##### Pdf417
 Prints a PDF417 code.
@@ -845,6 +972,119 @@ Prints a PDF417 code.
 - `height` (number, required): Module height
 - `error_correction` (number, required): Error correction level (0-8)
 
+**Helper:**
+
+```typescript
+pdf417('PDF417 data', { columns: 2, rows: 5, width: 3, height: 5, error_correction: 2 })
+```
+
+> **⚠️ Advanced 2D codes.** The four symbologies below (`Aztec`, `Gs1Databar2d`, `MaxiCode`,
+> `Composite`) require printer firmware support and are **only implemented by advanced Epson
+> models** (e.g. TM-T88VI and higher). Most entry-level thermal printers ignore them. All four
+> accept an optional `align` (`"left" | "center" | "right"`), like `Qr` / `Barcode`.
+
+##### Aztec
+Prints an Aztec Code. Uses `GS ( k` with `cn = 53`.
+
+```json
+{
+  "Aztec": {
+    "data": "Aztec data",
+    "mode": 0,
+    "layers": 0,
+    "size": 3,
+    "error_correction": 23,
+    "align": "center"
+  }
+}
+```
+
+- `data` (string, required): Aztec data. **Must not be empty.**
+- `mode` (number, required): `0` = full range, `1` = compact
+- `layers` (number, required): Number of data layers, `0` = automatic (1–32)
+- `size` (number, required): Module size (2–16)
+- `error_correction` (number, required): Error correction as a percentage of capacity (5–95)
+- `align` (string, optional): `"left"` | `"center"` | `"right"`
+
+**Helper:**
+
+```typescript
+aztec('Aztec data', { size: 3, error_correction: 23, align: 'center' })
+```
+
+##### Gs1Databar2d
+Prints a 2D GS1 DataBar. Uses `GS ( k` with `cn = 51`.
+
+```json
+{
+  "Gs1Databar2d": {
+    "data": "1234567890123",
+    "databar_type": "STACKED-OMNI",
+    "width": 2,
+    "align": "center"
+  }
+}
+```
+
+- `data` (string, required): GS1 DataBar data. **Must not be empty.**
+- `databar_type` (string, required): `"STACKED"` | `"STACKED-OMNI"` | `"EXPANDED-STACKED"`
+- `width` (number, required): Module width (2–8)
+- `align` (string, optional): `"left"` | `"center"` | `"right"`
+
+**Helper:**
+
+```typescript
+gs1Databar2d('1234567890123', 'STACKED-OMNI', { width: 2, align: 'center' })
+```
+
+##### MaxiCode
+Prints a MaxiCode (fixed physical size). Uses `GS ( k` with `cn = 50`.
+
+```json
+{
+  "MaxiCode": {
+    "data": "MaxiCode data",
+    "mode": 4,
+    "align": "center"
+  }
+}
+```
+
+- `data` (string, required): MaxiCode data. **Must not be empty.**
+- `mode` (number, required): Mode `2`–`6` (`4` is the general-purpose default)
+- `align` (string, optional): `"left"` | `"center"` | `"right"`
+
+**Helper:**
+
+```typescript
+maxicode('MaxiCode data', { mode: 4, align: 'center' })
+```
+
+##### Composite
+Prints a Composite Symbology (GS1 Composite CC-A/CC-B/CC-C). Uses `GS ( k` with `cn = 52`.
+
+```json
+{
+  "Composite": {
+    "data": "Composite data",
+    "symbol_type": 48,
+    "width": 2,
+    "align": "center"
+  }
+}
+```
+
+- `data` (string, required): Composite data. **Must not be empty.**
+- `symbol_type` (number, required): The `m` parameter selecting the 1D host + 2D component. **Its exact value is printer/spec specific — check your device's ESC/POS reference.**
+- `width` (number, required): Module width (2–8)
+- `align` (string, optional): `"left"` | `"center"` | `"right"`
+
+**Helper:**
+
+```typescript
+composite('Composite data', { symbol_type: 48, width: 2, align: 'center' })
+```
+
 ##### Image
 Prints an image.
 
@@ -866,6 +1106,12 @@ Prints an image.
 - `dithering` (boolean, required): Apply Floyd-Steinberg dithering for better quality on monochrome printers
 - `size` (string, required): `"normal"` | `"double_width"` | `"double_height"` | `"quadruple"`
 
+**Helper:**
+
+```typescript
+image(base64Data, { max_width: 384, align: 'center', dithering: true, size: 'normal' })
+```
+
 ##### Logo
 Prints a logo stored in the printer.
 
@@ -881,6 +1127,13 @@ Prints a logo stored in the printer.
 - `key_code` (number, required): Logo key code (1-255)
 - `mode` (string, required): Print mode ("normal", "double_width", "double_height", "quadruple")
 
+**Helper:**
+
+```typescript
+logo(1)
+logo(1, 'double_width')
+```
+
 ##### Line
 Prints a separator line.
 
@@ -894,6 +1147,12 @@ Prints a separator line.
 
 - `character` (string, required): Character for the line (e.g., "=", "-", "_")
 
+**Helper:**
+
+```typescript
+line()       // full-width row of '-'
+line('=')
+```
 
 ##### GlobalStyles
 Changes the current global styles that will be applied to subsequent text sections. This allows you to set default styles without specifying them for each text element.
@@ -926,12 +1185,24 @@ Changes the current global styles that will be applied to subsequent text sectio
 - `size` (string, optional): Size ("normal", "height", "width", "double") (default: `"normal"`)
 - `double_strike` (boolean, optional): Double-strike / double-print (`ESC G`). Reinforces bold on generic printers that render `ESC E` weakly (default: `false`)
 
+**Helper:**
+
+```typescript
+globalStyles({ bold: true, align: 'center' })
+```
+
 ###### Reset
 
 Pass `reset: true` in a `GlobalStyles` section to reset the printer (`ESC @`) and re-apply the code page. **`reset` takes priority: all other style fields in the same section are ignored.**
 
 ```json
 { "GlobalStyles": { "reset": true } }
+```
+
+**Helper:**
+
+```typescript
+reset()   // shorthand for globalStyles({ reset: true })
 ```
 
 ##### LineSpacing
@@ -943,6 +1214,13 @@ Sets the vertical line spacing (`ESC 3 n`). Omit `value` (or `null`) to reset to
 
 - `value` (number, optional): Spacing in dots. Omit / `null` = default.
 
+**Helper:**
+
+```typescript
+lineSpacing(20)
+lineSpacing()   // reset to printer default
+```
+
 ##### CharSpacing
 Sets the right-side character spacing (`ESC SP n`).
 
@@ -951,6 +1229,12 @@ Sets the right-side character spacing (`ESC SP n`).
 ```
 
 - `value` (number, required): Extra spacing per character, in dots (0–255).
+
+**Helper:**
+
+```typescript
+charSpacing(3)
+```
 
 ##### Position
 Sets the absolute horizontal print position for the next data (`ESC $`).
@@ -961,6 +1245,12 @@ Sets the absolute horizontal print position for the next data (`ESC $`).
 
 - `value` (number, required): Distance from the left margin, in dots.
 
+**Helper:**
+
+```typescript
+position(200)
+```
+
 ##### TabStops
 Defines horizontal tab stops (`ESC D ... NUL`). Emit a `\t` inside your text to jump to the next stop.
 
@@ -969,6 +1259,12 @@ Defines horizontal tab stops (`ESC D ... NUL`). Emit a `\t` inside your text to 
 ```
 
 - `positions` (number[], required): Tab stop columns (in characters), ascending. Up to 32. **Must not be empty.**
+
+**Helper:**
+
+```typescript
+tabStops([10, 24])
+```
 
 ##### LeftMargin
 Sets the left margin in standard mode (`GS L`).
@@ -979,6 +1275,12 @@ Sets the left margin in standard mode (`GS L`).
 
 - `value` (number, required): Left margin, in dots.
 
+**Helper:**
+
+```typescript
+leftMargin(60)
+```
+
 ##### PrintAreaWidth
 Sets the printable area width in standard mode (`GS W`).
 
@@ -987,6 +1289,12 @@ Sets the printable area width in standard mode (`GS W`).
 ```
 
 - `value` (number, required): Printable area width, in dots.
+
+**Helper:**
+
+```typescript
+printAreaWidth(512)
+```
 
 > **Compatibility note:** all of the above are classic single-letter ESC/POS commands with high support across generic/clone thermal printers.
 
@@ -1081,7 +1389,7 @@ const qr = {
 | `TEXT_ALIGN` | `LEFT` `CENTER` `RIGHT` |
 | `TEXT_SIZE` | `NORMAL` `HEIGHT` `WIDTH` `DOUBLE` |
 | `TEXT_FONT` | `A` `B` `C` |
-| `BARCODE_TYPE` | `UPC_A` `UPC_E` `EAN13` `EAN8` `CODE39` `ITF` `CODABAR` `CODE93` `CODE128` |
+| `BARCODE_TYPE` | `UPC_A` `UPC_E` `EAN13` `EAN8` `CODE39` `ITF` `CODABAR` `CODE93` `CODE128` `GS1_128` `GS1_DATABAR_OMNI` `GS1_DATABAR_TRUNCATED` `GS1_DATABAR_LIMITED` `GS1_DATABAR_EXPANDED` |
 | `BARCODE_TEXT_POSITION` | `NONE` `ABOVE` `BELOW` `BOTH` |
 | `QR_ERROR_CORRECTION` | `L` `M` `Q` `H` |
 | `IMAGE_MODE` | `NORMAL` `DOUBLE_WIDTH` `DOUBLE_HEIGHT` `QUADRUPLE` |

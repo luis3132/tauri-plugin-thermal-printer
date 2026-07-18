@@ -1,4 +1,8 @@
+use crate::commands_esc_pos::codes::aztec::Aztec;
 use crate::commands_esc_pos::codes::barcode::{Barcode, BarcodeTextPosition, BarcodeType};
+use crate::commands_esc_pos::codes::composite::Composite;
+use crate::commands_esc_pos::codes::gs1_databar_2d::{Gs1Databar2d, Gs1Databar2dType};
+use crate::commands_esc_pos::codes::maxicode::MaxiCode;
 use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode};
@@ -136,6 +140,7 @@ impl TestPrinter {
 
         if request.include_barcode_types {
             self.add_barcode_types_section(&mut document)?;
+            self.add_2d_codes_section(&mut document)?;
         }
 
         // ==================== CÓDIGO QR ====================
@@ -545,6 +550,60 @@ impl TestPrinter {
             .set_width(2)
             .set_text_position(BarcodeTextPosition::Below);
         document.extend(code39.get_command());
+        document.extend(b"\n\n");
+
+        // GS1-128 (requiere firmware compatible)
+        document.extend(b"GS1-128:\n");
+        let gs1_128 = Barcode::new(BarcodeType::Gs1128, "12345678".to_string())
+            .set_height(50)
+            .set_width(2)
+            .set_text_position(BarcodeTextPosition::Below);
+        document.extend(gs1_128.get_command());
+        document.extend(b"\n\n");
+
+        // GS1 DataBar Omnidirectional (requiere firmware compatible)
+        document.extend(b"GS1 DataBar Omni:\n");
+        let databar = Barcode::new(BarcodeType::Gs1DatabarOmni, "1234567890123".to_string())
+            .set_height(50)
+            .set_width(2)
+            .set_text_position(BarcodeTextPosition::Below);
+        document.extend(databar.get_command());
+        document.extend(b"\n\n");
+
+        document.extend(TextType::AlignLeft.command());
+        Ok(())
+    }
+
+    /// Códigos 2D avanzados (requieren firmware compatible; muchas impresoras
+    /// básicas los ignoran).
+    fn add_2d_codes_section(&self, document: &mut Vec<u8>) -> Result<(), String> {
+        document.extend(TextType::AlignCenter.command());
+
+        // Aztec Code
+        document.extend(b"Aztec:\n");
+        let aztec = Aztec::new("Aztec 123".to_string())
+            .set_size(3)
+            .set_error_correction(23);
+        document.extend(aztec.get_command());
+        document.extend(b"\n\n");
+
+        // GS1 DataBar Stacked Omnidirectional
+        document.extend(b"GS1 DataBar 2D:\n");
+        let databar = Gs1Databar2d::new("1234567890123".to_string(), Gs1Databar2dType::StackedOmni)
+            .set_width(2);
+        document.extend(databar.get_command());
+        document.extend(b"\n\n");
+
+        // MaxiCode (modo 4)
+        document.extend(b"MaxiCode:\n");
+        let maxicode = MaxiCode::new("MaxiCode data".to_string()).set_mode(4);
+        document.extend(maxicode.get_command());
+        document.extend(b"\n\n");
+
+        // Composite Symbology
+        document.extend(b"Composite:\n");
+        let composite = Composite::new("Composite data".to_string()).set_width(2);
+        document.extend(composite.get_command());
         document.extend(b"\n\n");
 
         document.extend(TextType::AlignLeft.command());

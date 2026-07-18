@@ -304,12 +304,57 @@ fn barcode_uses_gs_k() {
 }
 
 #[test]
-fn data_matrix_uses_gs_paren_k_with_cn_50() {
+fn gs1_128_uses_gs_k_m_74() {
+    let out = gen(vec![PrintSections::Barcode(Barcode {
+        data: "12345678".into(),
+        barcode_type: "GS1-128".into(),
+        width: 2,
+        height: 60,
+        text_position: "below".into(),
+        align: None,
+    })]);
+    // GS k m n data — m=74 (GS1-128)
+    assert!(contains(&out, &[0x1D, 0x6B, 74, 8]), "GS k m=74 (GS1-128)");
+}
+
+#[test]
+fn gs1_databar_variants_use_gs_k_m_75_to_78() {
+    for (ty, m) in [
+        ("GS1-DATABAR-OMNI", 75u8),
+        ("GS1-DATABAR-TRUNCATED", 76),
+        ("GS1-DATABAR-LIMITED", 77),
+    ] {
+        let out = gen(vec![PrintSections::Barcode(Barcode {
+            data: "1234567890123".into(),
+            barcode_type: ty.into(),
+            width: 2,
+            height: 60,
+            text_position: "below".into(),
+            align: None,
+        })]);
+        assert!(contains(&out, &[0x1D, 0x6B, m, 13]), "GS k m={m} ({ty})");
+    }
+
+    // Expanded acepta datos GS1 con AIs (no numeric-only)
+    let out = gen(vec![PrintSections::Barcode(Barcode {
+        data: "(01)12345678901231".into(),
+        barcode_type: "GS1-DATABAR-EXPANDED".into(),
+        width: 2,
+        height: 60,
+        text_position: "below".into(),
+        align: None,
+    })]);
+    assert!(contains(&out, &[0x1D, 0x6B, 78]), "GS k m=78 (GS1 DataBar Expanded)");
+}
+
+#[test]
+fn data_matrix_uses_gs_paren_k_with_cn_54() {
     let out = gen(vec![PrintSections::DataMatrix(DataMatrixModel {
         data: "DM data".into(),
         size: 5,
     })]);
-    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x32]), "DataMatrix (cn=50)");
+    // cn = 54 (0x36) es el valor estándar de DataMatrix (cn=50 es MaxiCode)
+    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x36]), "DataMatrix (cn=54)");
 }
 
 #[test]
@@ -323,6 +368,57 @@ fn pdf417_uses_gs_paren_k_with_cn_48() {
         error_correction: 2,
     })]);
     assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x30]), "PDF417 (cn=48)");
+}
+
+#[test]
+fn aztec_uses_gs_paren_k_with_cn_53() {
+    let out = gen(vec![PrintSections::Aztec(Aztec {
+        data: "Aztec data".into(),
+        mode: 0,
+        layers: 0,
+        size: 3,
+        error_correction: 23,
+        align: None,
+    })]);
+    // cn = 53 (0x35)
+    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x35]), "Aztec (cn=53)");
+}
+
+#[test]
+fn gs1_databar_2d_uses_gs_paren_k_with_cn_51() {
+    let out = gen(vec![PrintSections::Gs1Databar2d(Gs1Databar2d {
+        data: "1234567890123".into(),
+        databar_type: "STACKED-OMNI".into(),
+        width: 2,
+        align: None,
+    })]);
+    // cn = 51 (0x33); store fn 80 con m=73 (Stacked Omnidirectional)
+    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x33]), "GS1 DataBar 2D (cn=51)");
+    assert!(contains(&out, &[0x33, 0x50, 73]), "store m=73 (Stacked Omni)");
+}
+
+#[test]
+fn maxicode_uses_gs_paren_k_with_cn_50() {
+    let out = gen(vec![PrintSections::MaxiCode(MaxiCode {
+        data: "MaxiCode data".into(),
+        mode: 4,
+        align: None,
+    })]);
+    // cn = 50 (0x32); modo 4 -> n=0x34
+    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x32]), "MaxiCode (cn=50)");
+    assert!(contains(&out, &[0x32, 0x43, 0x34]), "modo 4 (n=0x34)");
+}
+
+#[test]
+fn composite_uses_gs_paren_k_with_cn_52() {
+    let out = gen(vec![PrintSections::Composite(Composite {
+        data: "Composite data".into(),
+        symbol_type: 48,
+        width: 2,
+        align: None,
+    })]);
+    // cn = 52 (0x34)
+    assert!(contains(&out, &[0x1D, 0x28, 0x6B, 0x03, 0x00, 0x34]), "Composite (cn=52)");
 }
 
 // ─── Image & logo ────────────────────────────────────────────────────────────
