@@ -522,9 +522,97 @@ fn table_renders_cell_text() {
         header: None,
         body: vec![vec![cell("ZED"), cell("OK")]],
         truncate: true,
+        word_wrap: None,
     })]);
     assert!(contains(&out, b"ZED"));
     assert!(contains(&out, b"OK"));
+}
+
+fn build_wrap_table(truncate: bool, word_wrap: Option<bool>) -> Table {
+    let cell = |s: &str| Text { text: s.to_string(), styles: None };
+    Table {
+        columns: 2,
+        column_widths: Some(vec![12, 36]),
+        header: None,
+        body: vec![vec![
+            cell("Cafe Americano Extra"),
+            cell("Descripcion larga que no cabe en una linea"),
+        ]],
+        truncate,
+        word_wrap,
+    }
+}
+
+/// Con `word_wrap = true` y sin truncar: el texto que no cabe continúa DEBAJO, dentro
+/// de su propia columna (no se desborda a la derecha) y se envuelve por PALABRA (sin
+/// partir palabras que caben en el ancho de la columna).
+#[test]
+fn table_word_wrap_keeps_words_and_wraps_below() {
+    let out = gen(vec![PrintSections::Table(build_wrap_table(false, Some(true)))]);
+    let text = String::from_utf8_lossy(&out);
+    let body: Vec<&str> = text
+        .lines()
+        .filter(|l| {
+            ["Cafe", "Americano", "Extra", "Descripcion", "linea"]
+                .iter()
+                .any(|w| l.contains(w))
+        })
+        .collect();
+
+    // La fila ocupa varias líneas: la continuación va debajo, no a la derecha.
+    assert!(body.len() >= 2, "la fila debe envolverse en varias lineas: {:?}", body);
+
+    // Word-wrap: las palabras que caben en la columna NO se parten.
+    assert!(text.contains("Americano"), "'Americano' no debe partirse");
+    assert!(text.contains("Extra"), "'Extra' se conserva y va debajo en col1");
+    assert!(text.contains("Descripcion"), "'Descripcion' no debe partirse");
+    assert!(text.contains("linea"), "col2 continúa debajo, palabra intacta");
+
+    // No hay desbordamiento a la derecha: en la primera línea, la columna 1 ("Cafe")
+    // se rellena hasta 12 y la columna 2 ("Descripcion") arranca justo después.
+    let first = text.lines().find(|l| l.contains("Cafe")).unwrap();
+    assert!(
+        first.contains("Cafe") && first.contains("Descripcion"),
+        "col1 y col2 en la misma primera línea, alineadas: {:?}",
+        first
+    );
+    // Entre "Cafe" y "Descripcion" solo debe haber espacios de relleno (no texto).
+    let mid = &first[first.find("Cafe").unwrap() + 4..first.find("Descripcion").unwrap()];
+    assert!(
+        mid.chars().all(|c| c == ' '),
+        "col1 se rellena solo con espacios (sin desbordar a la derecha): {:?}",
+        first
+    );
+}
+
+/// Por defecto (`word_wrap` ausente): el ajuste es por CARÁCTER, así que una palabra
+/// que no cabe se parte a mitad (comportamiento clásico, más compacto).
+#[test]
+fn table_default_wrap_is_by_character() {
+    let out = gen(vec![PrintSections::Table(build_wrap_table(false, None))]);
+    let text = String::from_utf8_lossy(&out);
+    // "Cafe Americano Extra" en ancho 12 se llena carácter a carácter:
+    // "Cafe America" (12) y luego "no Extra". La palabra "Americano" queda partida.
+    assert!(text.contains("Cafe America"), "col1 llena a 12 chars por carácter: {:?}", text);
+    assert!(
+        !text.contains("Americano"),
+        "en modo por carácter 'Americano' se parte (no aparece intacto)"
+    );
+}
+
+/// Con truncar: el texto que no cabe se corta y NO continúa debajo (independiente de
+/// `word_wrap`).
+#[test]
+fn table_truncate_cuts_and_does_not_wrap_below() {
+    let out = gen(vec![PrintSections::Table(build_wrap_table(true, Some(true)))]);
+    let text = String::from_utf8_lossy(&out);
+
+    // Solo hay una línea para la fila: nada continúa debajo.
+    let row_lines = text.lines().filter(|l| l.contains("Cafe")).count();
+    assert_eq!(row_lines, 1, "truncate: la fila debe ocupar una sola linea");
+    // El contenido sobrante quedó cortado (no aparece el final de cada celda).
+    assert!(!text.contains("Extra"), "col1 truncada: 'Extra' no debe aparecer");
+    assert!(!text.contains("una linea"), "col2 truncada: el final no debe aparecer");
 }
 
 // ─── Physical test document (TestPrinter) ────────────────────────────────────

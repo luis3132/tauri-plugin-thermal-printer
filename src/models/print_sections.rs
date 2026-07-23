@@ -119,6 +119,11 @@ pub struct Table {
     pub header: Option<Vec<Text>>,
     pub body: Vec<Vec<Text>>,
     pub truncate: bool,
+    /// When wrapping (`truncate = false`), whether to wrap by **word** (keep whole
+    /// words together, only splitting a word longer than the column) instead of the
+    /// default character-by-character wrap. Ignored when `truncate = true`.
+    #[serde(default)]
+    pub word_wrap: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

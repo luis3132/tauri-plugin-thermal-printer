@@ -23,6 +23,7 @@ pub fn process_table(
 
     let column_widths = resolve_column_widths(table, max_width);
     let column_groups = build_column_groups(&column_widths, max_width, table.columns as usize);
+    let word_wrap = table.word_wrap.unwrap_or(false);
     let mut output = Vec::new();
 
     if let Some(header) = &table.header {
@@ -33,6 +34,7 @@ pub fn process_table(
                 &column_widths,
                 &column_groups,
                 truncate,
+                word_wrap,
                 encoder,
             )?;
         }
@@ -45,6 +47,7 @@ pub fn process_table(
             &column_widths,
             &column_groups,
             truncate,
+            word_wrap,
             encoder,
         )?;
     }
@@ -163,12 +166,16 @@ fn write_row_groups(
     column_widths: &[i32],
     column_groups: &[Vec<usize>],
     truncate: bool,
+    word_wrap: bool,
     encoder: &TextEncoder,
 ) -> Result<(), String> {
     for group in column_groups {
         let widths = group_widths(group, column_widths);
         let cells = group_cells(group, row);
-        write_rendered_lines(output, render_row(&cells, &widths, truncate, encoder)?);
+        write_rendered_lines(
+            output,
+            render_row(&cells, &widths, truncate, word_wrap, encoder)?,
+        );
     }
 
     Ok(())

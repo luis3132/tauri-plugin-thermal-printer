@@ -406,6 +406,7 @@ impl TestPrinter {
         let table = Table {
             columns: 3,
             truncate: true,
+            word_wrap: None,
             column_widths: Some(vec![25, 8, 15]),
             header: Some(vec![
                 Text {

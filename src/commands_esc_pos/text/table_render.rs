@@ -11,9 +11,10 @@ pub fn render_row(
     row: &[Text],
     column_widths: &[i32],
     truncate: bool,
+    word_wrap: bool,
     encoder: &TextEncoder,
 ) -> Result<Vec<RenderedLine>, String> {
-    let rendered_cells = render_cells(row, column_widths, truncate, encoder)?;
+    let rendered_cells = render_cells(row, column_widths, truncate, word_wrap, encoder)?;
     let max_lines = rendered_cells.iter().map(Vec::len).max().unwrap_or(1);
     let mut output = Vec::new();
 
@@ -28,13 +29,14 @@ fn render_cells(
     row: &[Text],
     column_widths: &[i32],
     truncate: bool,
+    word_wrap: bool,
     encoder: &TextEncoder,
 ) -> Result<Vec<Vec<RenderedLine>>, String> {
     let mut rendered = Vec::new();
 
     for (index, cell) in row.iter().enumerate() {
         let width = column_widths.get(index).copied().unwrap_or(10).max(0) as usize;
-        rendered.push(render_cell(&cell.text, width, truncate, encoder)?);
+        rendered.push(render_cell(&cell.text, width, truncate, word_wrap, encoder)?);
     }
 
     Ok(rendered)
@@ -68,13 +70,18 @@ fn render_cell(
     text: &str,
     width: usize,
     truncate: bool,
+    word_wrap: bool,
     encoder: &TextEncoder,
 ) -> Result<Vec<RenderedLine>, String> {
     if truncate {
         return Ok(vec![truncate_text(text, width, encoder)?]);
     }
 
-    wrap_text(text, width, encoder)
+    if word_wrap {
+        wrap_text_word(text, width, encoder)
+    } else {
+        wrap_text_char(text, width, encoder)
+    }
 }
 
 fn truncate_text(text: &str, width: usize, encoder: &TextEncoder) -> Result<RenderedLine, String> {
@@ -96,7 +103,13 @@ fn truncate_text(text: &str, width: usize, encoder: &TextEncoder) -> Result<Rend
     Ok(output)
 }
 
-fn wrap_text(text: &str, width: usize, encoder: &TextEncoder) -> Result<Vec<RenderedLine>, String> {
+/// Envuelve el texto de una celda por **carácter**: llena cada línea hasta el ancho
+/// de la columna sin respetar límites de palabra (comportamiento por defecto).
+fn wrap_text_char(
+    text: &str,
+    width: usize,
+    encoder: &TextEncoder,
+) -> Result<Vec<RenderedLine>, String> {
     if width == 0 {
         return Ok(vec![RenderedLine::default()]);
     }
@@ -146,6 +159,68 @@ fn push_wrapped_char(
     }
 
     Ok(())
+}
+
+/// Envuelve el texto de una celda por **palabra**: mantiene cada palabra entera en
+/// la misma línea y solo parte una palabra por caracteres cuando por sí sola no
+/// cabe en el ancho de la columna. Colapsa los espacios en blanco a uno solo.
+fn wrap_text_word(
+    text: &str,
+    width: usize,
+    encoder: &TextEncoder,
+) -> Result<Vec<RenderedLine>, String> {
+    if width == 0 {
+        return Ok(vec![RenderedLine::default()]);
+    }
+
+    let mut lines = Vec::new();
+    let mut current = RenderedLine::default();
+
+    for word in text.split_whitespace() {
+        let encoded: Vec<EncodedChar> = word
+            .chars()
+            .map(|ch| encoder.encode_char(ch))
+            .collect::<Result<_, _>>()?;
+        let word_width: usize = encoded.iter().map(|ec| ec.width).sum();
+
+        // Espacio separador si ya hay contenido en la línea actual.
+        let separator = usize::from(current.width > 0);
+
+        // Si la palabra (con su separador) no cabe, cerrar la línea actual.
+        if current.width > 0 && current.width + separator + word_width > width {
+            finish_wrapped_line(&mut lines, &mut current);
+        }
+
+        if word_width <= width {
+            if current.width > 0 {
+                push_encoded_char(&mut current, encoder.encode_char(' ')?);
+            }
+            for ec in encoded {
+                push_encoded_char(&mut current, ec);
+            }
+        } else {
+            // Palabra más larga que la columna: partirla por caracteres.
+            if current.width > 0 {
+                finish_wrapped_line(&mut lines, &mut current);
+            }
+            for ec in encoded {
+                if current.width > 0 && current.width + ec.width > width {
+                    finish_wrapped_line(&mut lines, &mut current);
+                }
+                push_encoded_char(&mut current, ec);
+            }
+        }
+    }
+
+    if !current.bytes.is_empty() {
+        lines.push(current);
+    }
+
+    if lines.is_empty() {
+        lines.push(RenderedLine::default());
+    }
+
+    Ok(lines)
 }
 
 fn finish_wrapped_line(lines: &mut Vec<RenderedLine>, current: &mut RenderedLine) {

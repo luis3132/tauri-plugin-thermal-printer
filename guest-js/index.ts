@@ -291,6 +291,12 @@ export interface Table {
   header?: Text[]
   body: Text[][]
   truncate: boolean
+  /**
+   * When wrapping (`truncate: false`), wrap by **word** (keep whole words together,
+   * only splitting a word longer than the column) instead of the default
+   * character-by-character wrap. Ignored when `truncate: true`. Defaults to `false`.
+   */
+  word_wrap?: boolean
 }
 
 export interface Qr {
@@ -631,6 +637,7 @@ export function table(
     column_widths?: number[]
     header?: Text[]
     truncate?: boolean
+    word_wrap?: boolean
   },
 ): PrintSections {
   return {
@@ -640,6 +647,7 @@ export function table(
       column_widths: options?.column_widths,
       header: options?.header,
       truncate: options?.truncate ?? true,
+      word_wrap: options?.word_wrap ?? false,
     },
   }
 }

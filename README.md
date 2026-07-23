@@ -918,6 +918,24 @@ Or simply:
 - `header` (array, optional): Column headers — must have exactly `columns` elements if provided
 - `body` (array, required): Data rows — each row must have exactly `columns` cells
 - `truncate` (boolean, optional): Truncate long text instead of wrapping (default: `false`)
+- `word_wrap` (boolean, optional): When wrapping (`truncate: false`), wrap by **word** instead of by character (default: `false`). Ignored when `truncate: true`.
+
+**Cell overflow behavior:**
+
+Text that doesn't fit a column always flows **downward within the same column** (never to the right), so columns stay aligned. How it breaks depends on the flags:
+
+- **`truncate: true`:** text is **cut off** at the column width and does **not** continue below.
+- **`truncate: false`, `word_wrap: false` (default):** wraps **by character** — fills each line to the column width, splitting words mid-word (more compact).
+- **`truncate: false`, `word_wrap: true`:** wraps **by word** — keeps whole words together and only splits a word when it's longer than the column on its own.
+
+```text
+column_widths: [12, 36]
+
+word_wrap: false (default)      word_wrap: true
+Cafe America|Descripcion ...    Cafe        |Descripcion larga que no cabe en una
+no Extra    |una linea          Americano   |linea
+                                Extra        
+```
 
 **Helper:** (cells are built with the `text(...)` helper)
 

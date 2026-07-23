@@ -4,7 +4,6 @@ Default permissions for the plugin
 
 #### This default permission set includes the following:
 
-- `allow-ping`
 - `allow-print-thermal-printer`
 - `allow-list-thermal-printers`
 - `allow-test-thermal-printer`
@@ -40,32 +39,6 @@ Enables the list_thermal_printers command without any pre-configured scope.
 <td>
 
 Denies the list_thermal_printers command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`thermal-printer:allow-ping`
-
-</td>
-<td>
-
-Enables the ping command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`thermal-printer:deny-ping`
-
-</td>
-<td>
-
-Denies the ping command without any pre-configured scope.
 
 </td>
 </tr>

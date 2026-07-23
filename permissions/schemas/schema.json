@@ -307,18 +307,6 @@
           "markdownDescription": "Denies the list_thermal_printers command without any pre-configured scope."
         },
         {
-          "description": "Enables the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-ping",
-          "markdownDescription": "Enables the ping command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the ping command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-ping",
-          "markdownDescription": "Denies the ping command without any pre-configured scope."
-        },
-        {
           "description": "Enables the print_thermal_printer command without any pre-configured scope.",
           "type": "string",
           "const": "allow-print-thermal-printer",
@@ -343,10 +331,10 @@
           "markdownDescription": "Denies the test_thermal_printer command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-print-thermal-printer`\n- `allow-list-thermal-printers`\n- `allow-test-thermal-printer`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-print-thermal-printer`\n- `allow-list-thermal-printers`\n- `allow-test-thermal-printer`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-print-thermal-printer`\n- `allow-list-thermal-printers`\n- `allow-test-thermal-printer`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-print-thermal-printer`\n- `allow-list-thermal-printers`\n- `allow-test-thermal-printer`"
         }
       ]
     }
