@@ -114,7 +114,9 @@ impl ProcessPrint {
             PrintSections::Image(imagen) => {
                 image_cmd::process_section(imagen, self.print_job_context.paper_size.pixels_width())
             }
-            PrintSections::Logo(logo) => logo_cmd::process_section(logo),
+            PrintSections::Logo(logo) => {
+                logo_cmd::process_section(logo, self.print_job_context.paper_size.pixels_width())
+            }
             PrintSections::Table(table) => table_cmd::process_section(
                 table,
                 self.print_job_context.paper_size.chars_per_line(),

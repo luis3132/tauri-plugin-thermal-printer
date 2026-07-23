@@ -101,6 +101,11 @@ pub struct TestPrintRequest {
     /// Generic buzzer (`ESC B`) — for printers that ignore the Epson beep (`ESC ( A`).
     #[serde(default = "default_false")]
     pub test_beep2: bool,
+
+    /// NV logo demo: stores `image_base64` as the NV logo (`FS q`) and prints it
+    /// (`FS p`). Requires `image_base64`; skipped otherwise.
+    #[serde(default = "default_false")]
+    pub test_logo: bool,
 }
 
 fn default_true() -> bool {

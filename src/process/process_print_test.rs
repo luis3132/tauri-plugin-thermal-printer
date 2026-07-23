@@ -5,12 +5,13 @@ use crate::commands_esc_pos::codes::gs1_databar_2d::{Gs1Databar2d, Gs1Databar2dT
 use crate::commands_esc_pos::codes::maxicode::MaxiCode;
 use crate::commands_esc_pos::codes::qr::{QRErrorCorrection, QRModel, QRSize, QR};
 use crate::commands_esc_pos::control::printer_control::PrinterControl;
+use crate::commands_esc_pos::image_escpos::logo::Logo as NvLogo;
 use crate::commands_esc_pos::image_escpos::{Image, ImageAlignment, ImageMode};
 use crate::commands_esc_pos::text::encoder::TextEncoder;
 use crate::commands_esc_pos::text::table;
 use crate::commands_esc_pos::text::text_type::TextType;
 use crate::models::print_job_request::PrintJobRequest;
-use crate::models::print_sections::{Table, Text};
+use crate::models::print_sections::{Image as ImageSection, Table, Text};
 use crate::TestPrintRequest;
 
 pub struct TestPrinter {
@@ -48,6 +49,7 @@ impl TestPrinter {
                 test_beep2: true,
                 test_feed: true,
                 test_cash_drawer: true,
+                test_logo: true,
                 include_beep: true,
                 cut_paper: true,
             },
@@ -152,6 +154,13 @@ impl TestPrinter {
         if request.include_image {
             if let Some(ref image_base64) = request.image_base64 {
                 self.add_image_section(&mut document, image_base64)?;
+            }
+        }
+
+        // ==================== LOGO NV (FS q / FS p) ====================
+        if request.test_logo {
+            if let Some(ref image_base64) = request.image_base64 {
+                self.add_logo_section(&mut document, image_base64)?;
             }
         }
 
@@ -658,6 +667,50 @@ impl TestPrinter {
             }
         }
 
+        Ok(())
+    }
+
+    /// Guarda la imagen como logo en memoria NV (`FS q`) y luego la imprime (`FS p`).
+    /// Demuestra el flujo completo de `set_logo`. Muchas impresoras genéricas soportan
+    /// `FS q`/`FS p`, pero algunas no tienen memoria NV — en ese caso se ignora.
+    fn add_logo_section(&self, document: &mut Vec<u8>, image_base64: &str) -> Result<(), String> {
+        document.extend(TextType::BoldOn.command());
+        document.extend(b">>> LOGO NV (FS q / FS p) <<<\n");
+        document.extend(TextType::BoldOff.command());
+        document.extend(b"\n");
+
+        let paper_width = self
+            .print_job_context
+            .printer_info
+            .paper_size
+            .pixels_width();
+
+        // La imagen para almacenar reutiliza el formato de sección Image.
+        let logo_image = ImageSection {
+            data: image_base64.to_string(),
+            max_width: 0,
+            align: "center".to_string(),
+            dithering: true,
+            size: "normal".to_string(),
+        };
+
+        // 1) Guardar en memoria NV con la clave 1 (FS q).
+        match NvLogo::get_define_command(&logo_image, paper_width) {
+            Ok(define_cmd) => {
+                document.extend(define_cmd);
+
+                // 2) Imprimir el logo recién guardado (FS p n=1).
+                document.extend(TextType::AlignCenter.command());
+                document.extend(NvLogo::new(1).get_print_command());
+                document.extend(b"\n");
+                document.extend(TextType::AlignLeft.command());
+            }
+            Err(_) => {
+                document.extend(b"Error al guardar el logo\n");
+            }
+        }
+
+        document.extend(b"\n");
         Ok(())
     }
 

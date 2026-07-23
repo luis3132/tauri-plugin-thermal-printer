@@ -1113,7 +1113,7 @@ image(base64Data, { max_width: 384, align: 'center', dithering: true, size: 'nor
 ```
 
 ##### Logo
-Prints a logo stored in the printer.
+Prints a logo previously stored in the printer's non-volatile (NV) memory (`FS p`).
 
 ```json
 {
@@ -1124,14 +1124,36 @@ Prints a logo stored in the printer.
 }
 ```
 
-- `key_code` (number, required): Logo key code (1-255)
-- `mode` (string, required): Print mode ("normal", "double_width", "double_height", "quadruple")
+- `key_code` (number, optional): NV logo key code (1-255). Defaults to `1`. Ignored when `set_logo` is present.
+- `mode` (string, optional): Print mode ("normal", "double_width", "double_height", "quadruple"). Defaults to `"normal"`. Ignored when `set_logo` is present.
+- `set_logo` (image, optional): When present, **stores** this image as the NV logo (`FS q`) instead of printing. It takes priority: `key_code`/`mode` are ignored and nothing is printed. The image is downloaded to the printer's NV memory (key code `1`) and can later be printed with a `Logo` section without `set_logo`.
+
+Storing a logo (send once; it survives power-off):
+
+```json
+{
+  "Logo": {
+    "set_logo": {
+      "data": "iVBORw0KGgoAAAANSUhEUg... (base64, with or without data URI prefix)",
+      "max_width": 0,
+      "dithering": true
+    }
+  }
+}
+```
+
+> **Note:** NV logo storage depends on the printer having non-volatile graphics memory. Many generic/clone printers support `FS q`/`FS p`, but some do not. The image is resized to the paper width, converted to grayscale and binarized (Floyd–Steinberg dithering) before download. `set_logo` always stores under key code `1` (the only value `FS q` accepts).
 
 **Helper:**
 
 ```typescript
-logo(1)
+// Print a stored NV logo
+logo()                    // key code 1, normal mode
 logo(1, 'double_width')
+
+// Store an image as the NV logo (send once)
+setLogo(base64Image)
+setLogo(base64Image, { max_width: 384, dithering: true })
 ```
 
 ##### Line
@@ -1404,7 +1426,7 @@ Short helper functions to build section types without enum wrapper boilerplate:
 ```typescript
 import {
   title, subtitle, text, line, feed, cut, globalStyles,
-  beep, drawer, table, qr, barcode, dataMatrix, pdf417, image, logo,
+  beep, drawer, table, qr, barcode, dataMatrix, pdf417, image, logo, setLogo,
   TEXT_ALIGN, TEXT_SIZE, BARCODE_TYPE, QR_ERROR_CORRECTION,
 } from "tauri-plugin-thermal-printer";
 
@@ -1451,7 +1473,8 @@ const sections = [
 | `dataMatrix(data, size?)` | Creates a `{ DataMatrix: ... }` section (default `size=6`) |
 | `pdf417(data, options?)` | Creates a `{ Pdf417: ... }` section (`columns=0`, `rows=0`, `width=2`, `height=3`, `error_correction=2`) |
 | `image(data, options?)` | Creates a `{ Image: ... }` section (`max_width=0`, `align="center"`, `dithering=true`, `size="normal"`) |
-| `logo(key_code, mode?)` | Creates a `{ Logo: ... }` section (default `mode="normal"`) |
+| `logo(key_code?, mode?)` | Creates a `{ Logo: ... }` section that prints a stored NV logo (default `key_code=1`, `mode="normal"`) |
+| `setLogo(data, options?)` | Creates a `{ Logo: { set_logo } }` section that stores an image in NV memory (`max_width=0`, `dithering=true`) |
 
 ### Helper example (all builders)
 
@@ -1475,6 +1498,7 @@ import {
   pdf417,
   image,
   logo,
+  setLogo,
   ENCODE,
   TEXT_ALIGN,
   TEXT_SIZE,

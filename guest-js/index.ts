@@ -402,9 +402,17 @@ export interface Image {
 }
 
 export interface Logo {
-  /** NV memory key code (1–255) */
-  key_code: number
-  mode: ImageMode
+  /** NV memory key code (1–255). Ignored when `set_logo` is set. Defaults to 1. */
+  key_code?: number
+  /** Print mode. Ignored when `set_logo` is set. Defaults to 'normal'. */
+  mode?: ImageMode
+  /**
+   * When set, stores this image as the NV logo (`FS q`) instead of printing.
+   * Takes priority: `key_code`/`mode` are ignored and nothing is printed. The
+   * image is downloaded to the printer's non-volatile memory (key code 1) and can
+   * later be printed with a `logo()` section (without `set_logo`).
+   */
+  set_logo?: Image
 }
 
 export interface Line {
@@ -518,6 +526,11 @@ export interface TestPrintRequest {
   test_positioning?: boolean
   /** Generic buzzer (`ESC B`) — for printers that ignore the Epson beep. */
   test_beep2?: boolean
+  /**
+   * NV logo demo: stores `image_base64` as the NV logo (`FS q`) and prints it
+   * (`FS p`). Requires `image_base64`; skipped otherwise.
+   */
+  test_logo?: boolean
 }
 
 // ─── Helper builders ──────────────────────────────────────────────────────────
@@ -890,12 +903,37 @@ export function image(
   }
 }
 
-/** Creates a Logo section */
-export function logo(key_code: number, mode: ImageMode = 'normal'): PrintSections {
+/** Creates a Logo section that prints a logo already stored in NV memory (`FS p`). */
+export function logo(key_code: number = 1, mode: ImageMode = 'normal'): PrintSections {
   return {
     Logo: {
       key_code,
       mode,
+    },
+  }
+}
+
+/**
+ * Creates a Logo section that stores an image as the NV logo (`FS q`) instead of
+ * printing. The image is downloaded to the printer's non-volatile memory (key code
+ * 1) and can later be printed with `logo()`. `key_code`/`mode` are ignored here.
+ */
+export function setLogo(
+  data: string,
+  options?: {
+    max_width?: number
+    dithering?: boolean
+  },
+): PrintSections {
+  return {
+    Logo: {
+      set_logo: {
+        data,
+        max_width: options?.max_width ?? 0,
+        align: 'left',
+        dithering: options?.dithering ?? true,
+        size: 'normal',
+      },
     },
   }
 }

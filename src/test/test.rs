@@ -454,10 +454,61 @@ fn empty_image_is_rejected() {
 #[test]
 fn logo_emits_fs_p() {
     let out = gen(vec![PrintSections::Logo(Logo {
-        key_code: 1,
-        mode: "normal".into(),
+        key_code: Some(1),
+        mode: Some("normal".into()),
+        set_logo: None,
     })]);
     assert!(contains(&out, &[0x1C, 0x70, 0x01]), "FS p n (print NV logo)");
+}
+
+#[test]
+fn logo_defaults_key_code_when_omitted() {
+    // Sin key_code ni mode debe imprimir el logo NV con la clave por defecto (1).
+    let out = gen(vec![PrintSections::Logo(Logo {
+        key_code: None,
+        mode: None,
+        set_logo: None,
+    })]);
+    assert!(contains(&out, &[0x1C, 0x70, 0x01]), "FS p n con key_code por defecto");
+}
+
+#[test]
+fn set_logo_emits_fs_q_store() {
+    // `set_logo` tiene prioridad: guarda en memoria NV (FS q) e ignora key_code/mode.
+    let out = gen(vec![PrintSections::Logo(Logo {
+        key_code: Some(9),
+        mode: Some("quadruple".into()),
+        set_logo: Some(Image {
+            data: TINY_PNG_BASE64.into(),
+            max_width: 0,
+            align: "center".into(),
+            dithering: false,
+            size: "normal".into(),
+        }),
+    })]);
+    // FS q n=1 xL xH yL yH (para 1x1 => 1 byte ancho, 1 byte alto)
+    assert!(
+        contains(&out, &[0x1C, 0x71, 0x01, 0x01, 0x00, 0x01, 0x00]),
+        "FS q n xL xH yL yH (store NV logo)"
+    );
+    // No debe emitir el comando de impresión de logo (FS p).
+    assert!(!contains(&out, &[0x1C, 0x70]), "set_logo no debe imprimir (sin FS p)");
+}
+
+#[test]
+fn set_logo_rejects_empty_image() {
+    let result = ProcessPrint::new().generate_document(&job(vec![PrintSections::Logo(Logo {
+        key_code: None,
+        mode: None,
+        set_logo: Some(Image {
+            data: "".into(),
+            max_width: 0,
+            align: "left".into(),
+            dithering: false,
+            size: "normal".into(),
+        }),
+    })]));
+    assert!(result.is_err());
 }
 
 // ─── Table ───────────────────────────────────────────────────────────────────
@@ -563,6 +614,42 @@ fn test_document_beep2_uses_generic_buzzer() {
 fn test_document_double_strike_line_emits_esc_g() {
     let out = gen_test(&flag_set(&["include_text_styles", "test_double_strike"]));
     assert!(contains(&out, &[0x1B, 0x47, 0x01]), "ESC G (double-strike)");
+}
+
+#[test]
+fn test_document_logo_stores_and_prints() {
+    // test_logo con una imagen: guarda en memoria NV (FS q) y luego imprime (FS p).
+    let request: TestPrintRequest = serde_json::from_value(json!({
+        "printer_info": printer_info(),
+        "test_logo": true,
+        "image_base64": TINY_PNG_BASE64,
+    }))
+    .expect("valid TestPrintRequest");
+    let out = TestPrinter::new()
+        .generate_test_document(&request)
+        .expect("test document generation should succeed");
+
+    // FS q n=1 xL xH yL yH (para 1x1 => 1 byte de ancho y alto)
+    assert!(
+        contains(&out, &[0x1C, 0x71, 0x01, 0x01, 0x00, 0x01, 0x00]),
+        "FS q (store NV logo)"
+    );
+    // FS p n=1 (print NV logo)
+    assert!(contains(&out, &[0x1C, 0x70, 0x01]), "FS p (print NV logo)");
+}
+
+#[test]
+fn test_document_logo_skipped_without_image() {
+    // Sin image_base64 la sección de logo se omite silenciosamente.
+    let request: TestPrintRequest = serde_json::from_value(json!({
+        "printer_info": printer_info(),
+        "test_logo": true,
+    }))
+    .expect("valid TestPrintRequest");
+    let out = TestPrinter::new()
+        .generate_test_document(&request)
+        .expect("test document generation should succeed");
+    assert!(!contains(&out, &[0x1C, 0x71]), "sin imagen no debe emitir FS q");
 }
 
 // ─── Configurable dump (input via TEST_SECTIONS) ─────────────────────────────

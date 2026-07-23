@@ -1,6 +1,6 @@
 use super::image_mode::ImageMode;
+use super::image_processor::ImageProcessor;
 use crate::models::print_sections::Logo as LogoSection;
-// use super::image_processor::ImageProcessor;
 
 /// Clase para manejar logos guardados en la memoria de la impresora.
 /// Algunas impresoras ESC/POS permiten guardar logos en memoria NV (Non-Volatile).
@@ -37,9 +37,21 @@ impl Logo {
     }
 }
 
-/// Procesa sección Logo del modelo de impresión
-pub fn process_section(logo: &LogoSection) -> Result<Vec<u8>, String> {
-    let mode = match logo.mode.as_str() {
+/// Key code fijo usado al guardar el logo en memoria NV (`FS q` solo admite n = 1).
+pub const NV_LOGO_KEY_CODE: u8 = 1;
+
+/// Procesa sección Logo del modelo de impresión.
+///
+/// Si `set_logo` está presente, tiene prioridad: se descarga la imagen a la memoria
+/// NV de la impresora (`FS q`) y se ignoran `key_code`/`mode`. En caso contrario se
+/// imprime el logo previamente guardado (`FS p`).
+pub fn process_section(logo: &LogoSection, paper_width_pixels: i32) -> Result<Vec<u8>, String> {
+    // `set_logo` tiene prioridad: guardar en memoria NV e ignorar el resto de campos.
+    if let Some(image) = &logo.set_logo {
+        return Logo::get_define_command(image, paper_width_pixels);
+    }
+
+    let mode = match logo.mode.as_deref().unwrap_or("normal") {
         "normal" => ImageMode::Normal,
         "double_width" => ImageMode::DoubleWidth,
         "double_height" => ImageMode::DoubleHeight,
@@ -47,95 +59,78 @@ pub fn process_section(logo: &LogoSection) -> Result<Vec<u8>, String> {
         _ => ImageMode::Normal,
     };
 
-    let esc_pos_logo = Logo::new(logo.key_code).set_mode(mode);
+    let esc_pos_logo = Logo::new(logo.key_code.unwrap_or(NV_LOGO_KEY_CODE)).set_mode(mode);
     let mut data = esc_pos_logo.get_print_command();
     data.extend_from_slice(b"\n");
     Ok(data)
 }
 
 impl Logo {
-    // /// Comando para guardar una imagen como logo en memoria NV
-    // /// Nota: Este comando requiere que la imagen ya esté procesada
-    // ///
-    // /// # Arguments
-    // /// * `key_code` - Código de clave para el logo (1-255)
-    // /// * `image_data` - Datos de imagen procesados
-    // /// * `width` - Ancho de la imagen en píxeles
-    // /// * `height` - Alto de la imagen en píxeles
-    // pub fn get_define_command(
-    //     key_code: u8,
-    //     image_data: &[u8],
-    //     width: u32,
-    //     height: u32,
-    // ) -> Vec<u8> {
-    //     let mut output = Vec::new();
+    /// Genera el comando `FS q` para guardar una imagen como logo en la memoria NV.
+    ///
+    /// La imagen (base64) se procesa igual que una imagen normal (resize al ancho del
+    /// papel, escala de grises, binarización con dithering) y luego se empaqueta en el
+    /// **formato de columnas** que exige `FS q`:
+    ///
+    /// `FS q n xL xH yL yH d1...dk`
+    /// - `n = 1` (única clave admitida por el comando)
+    /// - horizontal = `(xL + xH*256) * 8` puntos → `xL/xH` son el ancho en **bytes**
+    /// - vertical   = `(yL + yH*256) * 8` puntos → `yL/yH` son el alto en **bytes**
+    /// - `k = x_bytes * y_bytes * 8`, con los datos en columnas: por cada columna de
+    ///   puntos se emiten `y_bytes` bytes (8 puntos verticales cada uno, MSB arriba),
+    ///   empezando por la columna izquierda.
+    pub fn get_define_command(
+        image: &crate::models::print_sections::Image,
+        paper_width_pixels: i32,
+    ) -> Result<Vec<u8>, String> {
+        if image.data.is_empty() {
+            return Err("Logo image data cannot be empty".to_string());
+        }
 
-    //     // FS q n [xL xH yL yH d1...dk]
-    //     output.push(0x1C); // FS
-    //     output.push(0x71); // q
-    //     output.push(key_code); // n
+        let max_width = if image.max_width > paper_width_pixels || image.max_width <= 0 {
+            paper_width_pixels as u32
+        } else {
+            image.max_width as u32
+        };
 
-    //     let width_bytes = ((width + 7) / 8) as u16;
-    //     let x_l = (width_bytes & 0xFF) as u8;
-    //     let x_h = ((width_bytes >> 8) & 0xFF) as u8;
-    //     let y_l = (height & 0xFF) as u8;
-    //     let y_h = ((height >> 8) & 0xFF) as u8;
+        let binary = ImageProcessor::process_image(&image.data, max_width, image.dithering)?;
+        let (width, height) = (binary.width(), binary.height());
 
-    //     output.push(x_l);
-    //     output.push(x_h);
-    //     output.push(y_l);
-    //     output.push(y_h);
-    //     output.extend_from_slice(image_data);
+        let x_bytes = ((width + 7) / 8) as u16;
+        let y_bytes = ((height + 7) / 8) as u16;
+        if x_bytes == 0 || y_bytes == 0 {
+            return Err("Logo image has no printable content".to_string());
+        }
 
-    //     output
-    // }
+        let mut output = vec![
+            0x1C, // FS
+            0x71, // q
+            NV_LOGO_KEY_CODE,
+            (x_bytes & 0xFF) as u8,
+            (x_bytes >> 8) as u8,
+            (y_bytes & 0xFF) as u8,
+            (y_bytes >> 8) as u8,
+        ];
 
-    // /// Comando para guardar un logo desde base64 en memoria NV
-    // ///
-    // /// # Arguments
-    // /// * `key_code` - Código de clave para el logo
-    // /// * `base64_image` - Imagen en formato base64
-    // /// * `max_width` - Ancho máximo en píxeles
-    // /// * `use_dithering` - Usar dithering Floyd-Steinberg
-    // pub fn define_from_base64(
-    //     key_code: u8,
-    //     base64_image: &str,
-    //     max_width: u32,
-    //     use_dithering: bool,
-    // ) -> Result<Vec<u8>, String> {
-    //     // Procesar la imagen
-    //     let processed_image = ImageProcessor::process_image(
-    //         base64_image,
-    //         max_width,
-    //         use_dithering,
-    //     )?;
+        // Formato de columnas: para cada columna de puntos (padded a múltiplo de 8),
+        // emitir `y_bytes` bytes verticales (8 puntos por byte, MSB = punto superior).
+        let padded_width = x_bytes as u32 * 8;
+        for col in 0..padded_width {
+            for band in 0..y_bytes as u32 {
+                let mut byte = 0u8;
+                for bit in 0..8u32 {
+                    let row = band * 8 + bit;
+                    if col < width && row < height {
+                        // Píxel negro (< umbral) => punto impreso (bit 1).
+                        if binary.get_pixel(col, row)[0] < 127 {
+                            byte |= 1 << (7 - bit);
+                        }
+                    }
+                }
+                output.push(byte);
+            }
+        }
 
-    //     let (width, height) = processed_image.dimensions();
-
-    //     // Convertir a bytes
-    //     let image_data = ImageProcessor::image_to_bytes(&processed_image);
-
-    //     // Generar comando
-    //     Ok(Self::get_define_command(key_code, &image_data, width, height))
-    // }
-
-    // /// Comando para borrar un logo de la memoria NV
-    // /// FS q n - Delete NV graphics
-    // pub fn get_delete_command(key_code: u8) -> Vec<u8> {
-    //     vec![
-    //         0x1C, // FS
-    //         0x71, // q
-    //         key_code, // n
-    //         0x00, // Enviar 0 bytes para borrar
-    //     ]
-    // }
-
-    // /// Comando para borrar todos los logos de la memoria NV
-    // pub fn get_delete_all_command() -> Vec<u8> {
-    //     vec![
-    //         0x1C, // FS
-    //         0x71, // q
-    //         0x00, // n = 0 (todos)
-    //     ]
-    // }
+        Ok(output)
+    }
 }

@@ -200,8 +200,18 @@ pub struct Image {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logo {
-    pub key_code: u8,
-    pub mode: String,
+    /// NV bit-image key code to print (`FS p n`). Ignored when `set_logo` is set.
+    /// Defaults to `1` when omitted.
+    pub key_code: Option<u8>,
+    /// Print mode (`normal`/`double_width`/`double_height`/`quadruple`).
+    /// Ignored when `set_logo` is set. Defaults to `normal` when omitted.
+    pub mode: Option<String>,
+    /// When present, store this image as the NV logo (`FS q`) instead of printing.
+    /// Takes priority: `key_code`/`mode` are ignored and nothing is printed — the
+    /// image is downloaded to the printer's non-volatile memory (key code `1`) and
+    /// can later be printed with a `Logo` section without `set_logo`.
+    #[serde(default)]
+    pub set_logo: Option<Image>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
