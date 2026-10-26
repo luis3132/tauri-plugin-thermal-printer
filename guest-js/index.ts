@@ -630,12 +630,22 @@ export function drawer(pin: 2 | 5 = 2, pulse_time: number = 120): PrintSections 
 }
 
 /** Creates a Table section */
+/** A table cell: a plain `Text` or the section returned by {@link text}. */
+export type TableCell = Text | PrintSections
+
+// Rust expects bare `Text` cells; unwrap the `{ Text }` section that `text()` returns.
+function toCell(cell: TableCell): Text {
+  if ('Text' in cell) return cell.Text
+  if ('text' in cell) return cell
+  throw new Error(`Table cells must be text: got ${Object.keys(cell)[0]}`)
+}
+
 export function table(
   columns: number,
-  body: Text[][],
+  body: TableCell[][],
   options?: {
     column_widths?: number[]
-    header?: Text[]
+    header?: TableCell[]
     truncate?: boolean
     word_wrap?: boolean
   },
@@ -643,9 +653,9 @@ export function table(
   return {
     Table: {
       columns,
-      body,
+      body: body.map((row) => row.map(toCell)),
       column_widths: options?.column_widths,
-      header: options?.header,
+      header: options?.header?.map(toCell),
       truncate: options?.truncate ?? true,
       word_wrap: options?.word_wrap ?? false,
     },

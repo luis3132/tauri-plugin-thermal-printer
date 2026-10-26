@@ -3,6 +3,9 @@ use super::image_mode::ImageMode;
 use super::image_processor::ImageProcessor;
 use crate::models::print_sections::Image as ImageSection;
 
+/// Filas por cada comando GS v 0 (ver `get_command`).
+const BAND_HEIGHT: u32 = 24;
+
 /// Constructor de comandos para imágenes
 #[derive(Debug, Clone)]
 pub struct Image {
@@ -64,19 +67,28 @@ impl Image {
         let width_bytes = ((width + 7) / 8) as u16;
         let x_l = (width_bytes & 0xFF) as u8;
         let x_h = ((width_bytes >> 8) & 0xFF) as u8;
-        let y_l = (height & 0xFF) as u8;
-        let y_h = ((height >> 8) & 0xFF) as u8;
 
-        // Comando para imprimir imagen raster: GS v 0 m xL xH yL yH d1...dk
-        output.push(0x1D); // GS
-        output.push(0x76); // v
-        output.push(0x30); // 0 (ASCII '0', no 0x00)
-        output.push(self.mode.value()); // m
-        output.push(x_l);
-        output.push(x_h);
-        output.push(y_l);
-        output.push(y_h);
-        output.extend_from_slice(&image_data);
+        // La imagen se envía en bandas de BAND_HEIGHT filas, cada una con su propio
+        // GS v 0. Muchas impresoras genéricas esperan a recibir el bloque raster entero
+        // antes de imprimir y, si no cabe en su buffer, lo imprimen a trozos o corrupto;
+        // con bandas pequeñas empiezan a imprimir en cuanto llega la primera.
+        let row_bytes = width_bytes as usize;
+        for band_start in (0..height).step_by(BAND_HEIGHT as usize) {
+            let band_rows = BAND_HEIGHT.min(height - band_start);
+
+            // Comando para imprimir imagen raster: GS v 0 m xL xH yL yH d1...dk
+            output.push(0x1D); // GS
+            output.push(0x76); // v
+            output.push(0x30); // 0 (ASCII '0', no 0x00)
+            output.push(self.mode.value()); // m
+            output.push(x_l);
+            output.push(x_h);
+            output.push((band_rows & 0xFF) as u8);
+            output.push(((band_rows >> 8) & 0xFF) as u8);
+
+            let start = band_start as usize * row_bytes;
+            output.extend_from_slice(&image_data[start..start + band_rows as usize * row_bytes]);
+        }
 
         // Restaurar alineación a la izquierda
         output.extend_from_slice(&[0x1B, 0x61, 0x00]);

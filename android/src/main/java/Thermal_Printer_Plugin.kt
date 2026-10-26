@@ -37,7 +37,10 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
     private val macRegex = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
     private val networkRegex = Regex("^\\d{1,3}(\\.\\d{1,3}){3}:\\d+$")
 
-    private fun isBluetoothIdentifier(identifier: String) = macRegex.matches(identifier)
+    // Cualquier cosa que no sea USB ni red se trata como Bluetooth: una MAC o el nombre
+    // de un dispositivo emparejado (se resuelve a MAC al imprimir).
+    private fun isBluetoothIdentifier(identifier: String) =
+        !identifier.startsWith("VID:") && !networkRegex.matches(identifier)
 
     // BLUETOOTH_CONNECT/SCAN solo son permisos runtime en Android 12+ (API 31).
     // En versiones anteriores el Bluetooth clásico se concede en tiempo de instalación.
@@ -169,7 +172,14 @@ class Thermal_Printer_Plugin(private val activity: Activity) : Plugin(activity) 
                         BluetoothPrinter(context).printRawData(identifier, bytes)
                     }
                     else -> {
-                        return@Thread invoke.reject("Unrecognized printer identifier: $identifier")
+                        val printer = BluetoothPrinter(context)
+                        val address = printer.findBondedAddressByName(identifier)
+                            ?: return@Thread invoke.reject(
+                                "Unrecognized printer identifier: $identifier " +
+                                    "(use the `identifier` from list_thermal_printers)"
+                            )
+                        Log.d(TAG, "Resolved Bluetooth name '$identifier' to $address")
+                        printer.printRawData(address, bytes)
                     }
                 }
 
