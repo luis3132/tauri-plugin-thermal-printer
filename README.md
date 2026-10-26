@@ -181,7 +181,7 @@ The plugin translates all sections into **ESC/POS** (Escape Sequence for Point o
 >
 > | Connection | `printer` / `identifier` format | Discovery | Notes |
 > | ---------- | ------------------------------- | --------- | ----- |
-> | Bluetooth  | MAC address `"AA:BB:CC:DD:EE:FF"` | Paired (bonded) devices | Printer must be paired in Android Bluetooth settings first. Runtime permission requested automatically (Android 12+). |
+> | Bluetooth  | MAC address `"AA:BB:CC:DD:EE:FF"` | Paired (bonded) devices | Printer must be paired in Android Bluetooth settings first. Runtime permission requested automatically (Android 12+). The paired device **name** is also accepted and resolved to its MAC. |
 > | USB        | `"VID:<vendorId>/PID:<productId>"` (decimal) | Connected USB-host / OTG devices | The system shows a one-time USB permission dialog on first print (unavoidable Android security step). |
 > | Network    | `"<host>:<port>"` (e.g. `"192.168.1.100:9100"`) | Automatic via **NSD / mDNS** (`_pdl-datastream._tcp`, `_printer._tcp`, `_ipp._tcp`) | Prints over a RAW/JetDirect TCP socket (port 9100). Phone and printer must be on the same network. No IP configuration or subnet scan required. |
 

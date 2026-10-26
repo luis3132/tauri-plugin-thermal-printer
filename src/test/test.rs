@@ -440,6 +440,31 @@ fn image_emits_raster_command() {
 }
 
 #[test]
+fn image_is_split_into_raster_bands() {
+    use base64::{engine::general_purpose, Engine as _};
+
+    // Imagen negra de 16x50 → 2 bytes por fila, bandas de 24 + 24 + 2 filas.
+    let img = image::DynamicImage::ImageLuma8(image::ImageBuffer::from_pixel(16, 50, image::Luma([0u8])));
+    let mut png = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut png, image::ImageOutputFormat::Png).unwrap();
+
+    let out = gen(vec![PrintSections::Image(Image {
+        data: general_purpose::STANDARD.encode(png.into_inner()),
+        max_width: 0,
+        align: "left".into(),
+        dithering: false,
+        size: "normal".into(),
+    })]);
+
+    let bands: Vec<(u8, u8)> = out
+        .windows(8)
+        .filter(|w| w[..4] == [0x1D, 0x76, 0x30, 0x00])
+        .map(|w| (w[4], w[6]))
+        .collect();
+    assert_eq!(bands, vec![(2, 24), (2, 24), (2, 2)], "(xL, yL) por banda");
+}
+
+#[test]
 fn empty_image_is_rejected() {
     let result = ProcessPrint::new().generate_document(&job(vec![PrintSections::Image(Image {
         data: "".into(),
