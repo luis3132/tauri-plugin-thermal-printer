@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">"Thermal Printer Demo"</string>
+    <string name="main_activity_title">"Thermal Printer Demo"</string>
+</resources>

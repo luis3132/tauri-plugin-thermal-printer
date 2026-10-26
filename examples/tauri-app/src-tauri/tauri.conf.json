@@ -1,7 +1,7 @@
 {
-  "productName": "tauri-app",
+  "productName": "Thermal Printer Demo",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.luis3132.thermalprinter.demo",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
@@ -16,10 +16,12 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "height": 800,
         "resizable": true,
-        "title": "tauri-app",
-        "width": 800
+        "title": "Thermal Printer Demo",
+        "width": 1180,
+        "minWidth": 360,
+        "minHeight": 480
       }
     ]
   },
